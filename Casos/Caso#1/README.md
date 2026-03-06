@@ -69,4 +69,57 @@ The system does not replace the customs expert; it reduces operational workload 
     - Sentry 
 ---
 ## 1.2 UX/UI Analysis
+### Core Business Process
+The application allows customs operators to automatically generate a Documento Único Aduanero (DUA) from multiple source documents.
+
+Users authenticate using their credentials and a one-time token sent to their email. Once logged in, they can either review previously generated DUAs or initiate the creation of a new one.
+
+When generating a new DUA, the user configures the generation parameters such as accepted document formats and the template version to be used. The system then processes the uploaded documents, extracts the relevant customs information using AI models, and maps the data into the official DUA structure.
+
+During processing, the user can monitor the progress of the extraction and generation process. Once completed, the system displays the generated DUA in a PDF viewer where the user can review and download the final document.
+
+### Wireframes
+#### **User Login**
+The user logs into the system using their username, password, and a one-time authentication token received via email.
+![Login](media/wireframes/wireframe_login.png)
+![Login](media/wireframes/wireframe_login_2.png)
+
+#### **Select Option**
+After authentication, the user can choose between generating a new DUA or reviewing previously generated declarations.
+![Select Option](media/wireframes/wireframe_options.png)
+
+#### **DUA History**
+The system displays a list of previously generated DUAs associated with the user account. Each record can later be expanded or downloaded.
+![DUA History](media/wireframes/wireframe_history.png)
+
+#### **Generator Configuration**
+The user configures the generation process before uploading documents.
+
+Configuration options include:
+- Accepted document formats (PDF, Image, Word, Excel)
+- DUA template version (latest from the Ministry of Finance or custom uploaded template)
+- AI extraction mode (fast scan / detailed extraction)
+![Generator Configuration](media/wireframes/wireframe_config.png)
+
+#### **Upload Files**
+The user uploads the commercial documents required to generate the DUA.
+Files can be uploaded using drag-and-drop or manual selection.
+Supported formats include:
+- PDF
+- DOCX
+- XLSX
+- Images
+
+![Upload Files](media/wireframes/wireframe_upload_2.png)
+![Upload Files2](media/wireframes/wireframe_upload.png)
+![Upload Files3](media/wireframes/wireframe_upload_3.png)
+
+#### **Processing Progress**
+During the document processing stage, the user can monitor the progress of the generation pipeline. The interface displays a progress bar and indicates the current step of the process.
+![Processing Progess](media/wireframes/wireframe_progress.png)
+
+#### **DUA Result**
+Once the process is completed, the generated DUA is displayed in a PDF preview interface. The user can review the document and download it as a PDF file.
+![DUA Result](media/wireframes/wireframe_result.png)
+---
 
