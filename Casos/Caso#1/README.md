@@ -122,6 +122,7 @@ During the document processing stage, the user can monitor the progress of the g
 
 #### **DUA Result**
 Once the process is completed, the generated DUA is displayed in a PDF preview interface. The user can review the document and download it as a PDF file.
+
 ![DUA Result](media/wireframes/wireframe_result.png)
 
 ---
