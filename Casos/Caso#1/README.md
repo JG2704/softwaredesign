@@ -1,6 +1,6 @@
-# CASO #1 - EJERCICIO #1
+# CASO #1 - EJERCICIO #2
 ### **Author:** José Gabriel Marín Aguilar c.2022119819
-Miércoles 4 de marzo de 2026
+Viernes 6 de marzo de 2026
 
 ## Problem Overview
 
@@ -25,6 +25,7 @@ The system does not replace the customs expert; it reduces operational workload 
 |Standardizes DUA preparation|Legal responsibility remains with the declarant|
 |Improves processing time||
 ---
+
 # 1. Frontend Design 
 
 ## 1.1 Technology Framework
@@ -66,5 +67,6 @@ The system does not replace the customs expert; it reduces operational workload 
     - AWS CloudWatch
     - OpenTelemetry JS 1.x
     - Sentry 
-
+---
+## 1.2 UX/UI Analysis
 
