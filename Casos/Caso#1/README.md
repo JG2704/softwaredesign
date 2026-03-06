@@ -125,5 +125,9 @@ Once the process is completed, the generated DUA is displayed in a PDF preview i
 
 ![DUA Result](media/wireframes/wireframe_result.png)
 
+### Modelo alternativo
+
+Un modelo alternativo para ver los wireframes puede encontrarse en la siguiente página: [Wireframes generados a partir de Coderick AI](https://preview-vc528368378939.coderick.net/?sgv=1772815747%3A26d1a14eb8605cde34bc344fd853adfda4a649cf18defbcff34d53228f4bfa68)
+
 ---
 
