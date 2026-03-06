@@ -99,6 +99,7 @@ Configuration options include:
 - Accepted document formats (PDF, Image, Word, Excel)
 - DUA template version (latest from the Ministry of Finance or custom uploaded template)
 - AI extraction mode (fast scan / detailed extraction)
+
 ![Generator Configuration](media/wireframes/wireframe_config.png)
 
 #### **Upload Files**
