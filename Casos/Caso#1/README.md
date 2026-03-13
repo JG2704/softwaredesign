@@ -376,7 +376,7 @@ Observability captures logs, errors, progress events, and notifications.
 ### Layered Design Diagram
 ![alt text](image.png)
 ### Mermaid Diagram
-``` Mermaid
+``` mermaid
 flowchart TD
     A[Authentication Layer] --> B[Authorization Layer]
     B --> C[Routing Layer]
