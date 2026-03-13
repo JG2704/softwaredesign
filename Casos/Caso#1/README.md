@@ -256,31 +256,19 @@ Below the UI, the DUA Workflow Services layer orchestrates the main frontend use
 The architecture is supported by cross-cutting layers. The Models Layer defines frontend domain objects such as User, DUA, Document, Goods, and GenerationJob. The State Management layer stores global application state such as session status, current workflow step, generated declarations, and upload progress. The Utilities Layer contains reusable helpers and formatters. Finally, the Observability / Notifications layer captures frontend errors, telemetry events, process logs, and user-facing notifications.
 
 ### Typical Responsability Layers
-Authentication Layer
-
-Authorization Layer
-
-Routing Layer
-
-Component Layer
-
-Hooks Layer
-
-DUA Workflow Services
-
-Validation Layer
-
-API Clients Layer
-
-Settings Layer
-
-Models Layer
-
-State Management
-
-Utilities Layer
-
-Observability / Notifications
+- Authentication Layer
+- Authorization Layer
+- Routing Layer
+- Component Layer
+- Hooks Layer
+- DUA Workflow Services
+- Validation Layer
+- API Clients Layer
+- Settings Layer
+- Models Layer
+- State Management
+- Utilities Layer
+- Observability / Notifications
 
 ### Suggested Folder Architecture
 ```
@@ -353,25 +341,16 @@ src/
     errorTracking.ts
 ```
 ### Execution Flow
-The user enters the application through the authentication flow.
-
-Authorization and routing validate access to protected screens.
-
-Pages are built from atoms, molecules, organisms, templates, and hooks.
-
-Hooks trigger DUA workflow services.
-
-Services validate input and delegate backend communication to API clients.
-
-API clients use centralized settings and endpoints.
-
-Responses are validated and mapped into frontend models.
-
-State management stores the updated session, workflow, and result data.
-
-Components re-render the UI.
-
-Observability captures logs, errors, progress events, and notifications.
+- The user enters the application through the authentication flow.
+- Authorization and routing validate access to protected screens.
+- Pages are built from atoms, molecules, organisms, templates, and hooks.
+- Hooks trigger DUA workflow services.
+- Services validate input and delegate backend communication to API clients.
+- API clients use centralized settings and endpoints.
+- Responses are validated and mapped into frontend models.
+- State management stores the updated session, workflow, and result data.
+- Components re-render the UI.
+- Observability captures logs, errors, progress events, and notifications.
 
 ### Layered Design Diagram
 ![alt text](image.png)
