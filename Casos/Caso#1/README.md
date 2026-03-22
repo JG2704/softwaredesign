@@ -1,6 +1,5 @@
-# CASO #1 - EJERCICIO #2
+# CASE #1
 ### **Author:** José Gabriel Marín Aguilar c.2022119819
-Viernes 6 de marzo de 2026
 
 ## Problem Overview
 
@@ -125,9 +124,9 @@ Once the process is completed, the generated DUA is displayed in a PDF preview i
 
 ![DUA Result](media/wireframes/wireframe_result.png)
 
-### Modelo alternativo
+### Alternative view
 
-Un modelo alternativo para ver los wireframes puede encontrarse en la siguiente página: [Wireframes generados a partir de Coderick AI](https://preview-vc528368378939.coderick.net/?sgv=1772815747%3A26d1a14eb8605cde34bc344fd853adfda4a649cf18defbcff34d53228f4bfa68)
+Another version of the wireframes can be found here: [Coderick AI generated wireframes](https://preview-vc528368378939.coderick.net/?sgv=1772815747%3A26d1a14eb8605cde34bc344fd853adfda4a649cf18defbcff34d53228f4bfa68)
 
 ---
 
@@ -353,7 +352,7 @@ src/
 - Observability captures logs, errors, progress events, and notifications.
 
 ### Layered Design Diagram
-![alt text](image.png)
+![alt text](media/layered_desing.png)
 ### Mermaid Diagram
 ``` mermaid
 flowchart TD
@@ -380,4 +379,133 @@ flowchart TD
     K[State Management] -. supports .-> D
     L[Utilities Layer] -. supports .-> D
 ```
+---
+## 1.6 Design Patterns
+The frontend applies object-oriented and architectural patterns only where they add clarity to the workflow.
+- The **Provider pattern** is used for authentication context and global UI concerns. It centralizes session awareness and avoids passing auth state through multiple component levels.
+- The **Guard pattern** is used for route protection and permission validation. `authGuard.tsx` protects authenticated routes and `permissionGuard.tsx` protects role- or claim-based actions.
+- The **Singleton pattern** is used for the shared HTTP client so that API configuration, interceptors, and authentication headers are defined once.
+- The **Factory pattern** is used to build frontend domain objects such as `DUA`, `Document`, or `GenerationJob` from API responses before they reach the UI.
+- The **Observer pattern** is applied through state subscriptions and reactive UI updates. Components refresh automatically when the global store changes or when async generation progress updates arrive.
+- The **Strategy pattern** is used where behavior may vary by configuration, such as document upload handling, template selection, or confidence rendering.
+- The **Facade pattern** is used in workflow services. Services expose simple methods to the UI while internally coordinating validation, API calls, settings, and notifications.
+- The **Interceptor pattern** is applied in the HTTP layer to inject tokens, handle authorization failures, and support session invalidation.
+- The **Pub/Sub or event-driven pattern** is used for notifications and progress events, allowing upload and generation status to update the UI without tight coupling.
 
+### Pattern Usage and Location
+
+| Pattern | Purpose | Main Location |
+|---|---|---|
+| Provider | Authentication and shared app context | `src/auth/authProvider.tsx` |
+| Guard | Route and permission protection | `src/auth/authGuard.tsx`, `src/auth/permissionGuard.tsx` |
+| Singleton | Shared HTTP client | `src/api/httpClient.ts` |
+| Factory | Build domain models from API data | `src/models/factories/duaFactory.ts` |
+| Observer | UI refresh from state changes | `src/state/`, `src/hooks/` |
+| Strategy | Variable workflow behavior | `src/services/`, `src/components/` |
+| Facade | Simplified orchestration for UI calls | `src/services/` |
+| Interceptor | Token injection and session invalidation | `src/api/httpClient.ts` |
+| Pub/Sub | Notifications and progress events | `src/services/notificationService.ts`, `src/observability/` |
+---
+## 1.7 `/src` Scaffold
+
+```text
+src/
+  auth/
+    authProvider.tsx
+    authGuard.tsx
+    permissionGuard.tsx
+
+  router/
+    appRouter.tsx
+    protectedRoute.tsx
+
+  components/
+    atoms/
+      Button.tsx
+      InputField.tsx
+      ProgressBar.tsx
+    molecules/
+      LoginForm.tsx
+      FileUploadBox.tsx
+      ConfidenceBadge.tsx
+    organisms/
+      HistoryTable.tsx
+      GeneratorConfigForm.tsx
+      PdfViewerPanel.tsx
+    templates/
+      AuthTemplate.tsx
+      DashboardTemplate.tsx
+      WorkflowTemplate.tsx
+    pages/
+      LoginPage.tsx
+      SelectOptionPage.tsx
+      DuaHistoryPage.tsx
+      GeneratorConfigurationPage.tsx
+      UploadDocumentsPage.tsx
+      ProcessingProgressPage.tsx
+      DuaResultPage.tsx
+
+  hooks/
+    useAuth.ts
+    useDuaGeneration.ts
+    useUploadDocuments.ts
+    useDuaHistory.ts
+
+  services/
+    authService.ts
+    duaGenerationService.ts
+    fileUploadService.ts
+    duaHistoryService.ts
+    notificationService.ts
+
+  api/
+    httpClient.ts
+    authApiClient.ts
+    duaApiClient.ts
+    uploadApiClient.ts
+
+  validation/
+    authSchemas.ts
+    uploadSchemas.ts
+    duaSchemas.ts
+    responseSchemas.ts
+
+  state/
+    store.ts
+    slices/
+      authSlice.ts
+      duaSlice.ts
+      uploadSlice.ts
+
+  models/
+    User.ts
+    DUA.ts
+    Document.ts
+    Goods.ts
+    GenerationJob.ts
+    factories/
+      duaFactory.ts
+
+  utils/
+    formatters.ts
+    fileHelpers.ts
+    dateUtils.ts
+
+  settings/
+    env.ts
+    routes.ts
+    constants.ts
+
+  observability/
+    logger.ts
+    telemetry.ts
+    errorTracking.ts
+
+  i18n/
+    en.json
+    es.json
+
+  theme/
+    theme.ts
+``` 
+---
