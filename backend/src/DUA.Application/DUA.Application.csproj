@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RootNamespace>DUA.Application</RootNamespace>
+    <AssemblyName>DUA.Application</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../DUA.Domain/DUA.Domain.csproj" />
+  </ItemGroup>
+</Project>

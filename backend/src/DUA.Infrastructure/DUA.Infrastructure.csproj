@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RootNamespace>DUA.Infrastructure</RootNamespace>
+    <AssemblyName>DUA.Infrastructure</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../DUA.Domain/DUA.Domain.csproj" />
+    <ProjectReference Include="../DUA.Application/DUA.Application.csproj" />
+  </ItemGroup>
+</Project>
