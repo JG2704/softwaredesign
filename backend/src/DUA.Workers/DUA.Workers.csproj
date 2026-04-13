@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk.Worker">
+  <PropertyGroup>
+    <RootNamespace>DUA.Workers</RootNamespace>
+    <AssemblyName>DUA.Workers</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../DUA.Application/DUA.Application.csproj" />
+    <ProjectReference Include="../DUA.Infrastructure/DUA.Infrastructure.csproj" />
+    <ProjectReference Include="../DUA.Domain/DUA.Domain.csproj" />
+  </ItemGroup>
+</Project>
