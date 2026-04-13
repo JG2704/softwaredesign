@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk.Worker">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>14.0</LangVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../DUA.Application/DUA.Application.csproj" />
+    <ProjectReference Include="../DUA.Infrastructure/DUA.Infrastructure.csproj" />
+  </ItemGroup>
+</Project>
