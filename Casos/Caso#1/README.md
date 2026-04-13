@@ -347,7 +347,7 @@ src/
 ### Layered Design Diagram
 ![DUA Streamliner Layered Design](media/layered_desing.png)
 ### Mermaid Diagram
-``` mermaid
+```mermaid
 flowchart TD
     A[Authentication Layer] --> B[Authorization Layer]
     B --> C[Routing Layer]
@@ -501,4 +501,193 @@ src/
   theme/
     theme.ts
 ``` 
+---
+
+# 2. Backend Design
+## 2.1 Technology Stack
+The backend follows a modular monolith architecture inside the same repository. This approach keeps the system easier to develop and document than a microservices design, while still separating responsibilities clearly across API, application, domain, infrastructure, and worker layers.
+- **Architecture style:** Modular monolith
+- **API style:** REST API over HTTPS
+- **Backend framework:** ASP.NET Core 10 Web API
+- **Backend language:** C# 14
+- **Open API standard:** OpenAPI 3.1
+- **Primary execution model:** synchronous API + asynchronous job processing
+- **Object storage:** Amazon S3
+- **Queueing:** Amazon SQS
+- **Secrets storage:** AWS Secrets Manager
+- **Container hosting:** AWS ECS Fargate
+- **Database:** Amazon RDS for PostgreSQL
+- **Observability:** Amazon CloudWatch + OpenTelemetry
+- **CI/CD:** GitHub Actions
+- **Infrastructure as Code:** Terraform
+- **Repository model:** practical monorepo with frontend at ./src and backend at ./backend
+- **API Gateway / Edge Protection:** Amazon API Gateway
+- **Transport protocol:** HTTPS over TCP
+- **Contract standard:** OpenAPI 3.1
+- **Business logic paradigm:** request/response API + asynchronous event-driven jobs
+
+.NET 10 is currently an LTS release, C# 14 is the current C# version supported on .NET 10, and ASP.NET Core 10 includes built-in OpenAPI support with OpenAPI 3.1 generation.
+
+---
+## 2.2 Security
+The backend security model is aligned with the frontend design already defined in the project. Authentication is implemented through custom JWT-based authentication with email OTP verification, keeping the same independent authentication strategy already documented for the frontend.
+
+All backend traffic is exposed only through HTTPS. Sensitive data at rest is encrypted using managed cloud encryption. For relational data, Amazon RDS encrypted instances use AES-256 at rest. For uploaded files and generated outputs, Amazon S3 applies server-side encryption by default, using 256-bit AES encryption.
+
+The system uses RBAC for authorization, matching the permission model already defined in the frontend README. Claims such as CREATE-DUA, UPLOAD-DOCUMENT, VIEW-DUA, and REVIEW-DUA are validated in the backend before protected use cases are executed.
+
+To reduce abuse risk, the public API enforces:
+- maximum payload limits for file upload endpoints,
+- stricter limits for non-upload endpoints,
+- request throttling and quotas,
+- secure secret storage through AWS Secrets Manager.
+
+Amazon API Gateway supports throttling and usage plans, which can be used to enforce request limits at API or method level.
+
+---
+## 2.3 Observability
+The backend records both operational and business events. Operational events include authentication failures, upload failures, processing exceptions, queue retries, callback errors, and infrastructure health issues. Business events include file upload started, file upload completed, extraction started, extraction completed, DUA generation completed, and DUA download requested.
+
+These events are sent to Amazon CloudWatch, while traces and distributed execution telemetry are captured through OpenTelemetry. Dashboards for operational analysis are built on top of CloudWatch metrics and logs. AWS services publish metrics to CloudWatch, which makes it suitable as the central observability platform for the backend.
+
+---
+## 2.4 Infrastructure (DevOps)
+The backend is deployed from the same repository as the frontend, but as an independent module inside `./backend`. CI/CD is handled through GitHub Actions, and infrastructure provisioning is handled through Terraform. This remains consistent with the frontend stack already documented in the project README.
+
+The deployment flow is:
+
+- push or merge into the repository,
+- run backend linting, tests, and build,
+- build API and worker container images,
+- push images to ECR,
+- apply Terraform changes,
+- deploy to ECS Fargate by environment.
+
+AWS Prescriptive Guidance includes patterns for Terraform-managed AWS infrastructure deployed through GitHub Actions, which aligns well with this repository model.
+
+---
+## 2.5 Availability
+The target availability for the backend is 99.9% uptime. The design avoids a single-process backend by separating the public API from asynchronous workers. ECS Fargate services should run with at least two tasks for the API in higher environments, while queues decouple frontend-triggered operations from long-running processing jobs.
+
+Potential single points of failure are:
+- a single database instance,
+- a single worker replica,
+- misconfigured secrets or IAM policies,
+- queue backlog saturation,
+- failure in the external OCR or semantic extraction provider.
+
+Recovery is handled through container restart, queue retry policies, health checks, infrastructure redeployment, and backup/restore procedures.
+
+---
+## 2.6 Scalability
+
+Scalability is driven mainly by request volume and file-processing workload. The elements that scale first are:
+- API tasks in ECS Fargate,
+- worker tasks in ECS Fargate,
+- SQS queue depth,
+- S3 storage volume,
+- RDS compute and storage,
+- observability volume in logs and traces.
+
+The API layer scales horizontally with incoming request rate. The worker layer scales independently according to queue backlog, which is especially important for OCR, parsing, semantic extraction, and DUA rendering.
+
+---
+## 2.7 Backend Key Workflows 
+
+### Upload Files to Generate DUA
+1. The backend receives the upload request and metadata for the generation job.
+2. Files are streamed and stored in Amazon S3.
+3. A generation job is created in the database.
+4. A message is published to Amazon SQS.
+5. A worker consumes the job and starts file processing.
+6. Parsed and extracted data is validated and normalized.
+7. The DUA draft is generated and stored.
+8. The job status is updated and exposed to the frontend.
+
+### Generate DUA from Uploaded Documents
+1. The worker loads the uploaded documents from S3.
+2. The system detects file type and selects the corresponding document processor.
+3. OCR is executed for scanned images when needed.
+4. Structured and unstructured data is extracted.
+5. Semantic extraction maps the data into DUA fields.
+6. Validation rules check consistency, required fields, and confidence thresholds.
+7. The output document is rendered and saved.
+8. A completion event is emitted for monitoring and user notification.
+
+### Setup DUA Template
+1. An authorized user uploads or selects a DUA template version.
+2. The backend validates template metadata and version rules.
+3. The template is stored in persistent storage.
+4. The selected template becomes available for future generation workflows.
+
+---
+## 2.8 Architecture diagrams in layers
+
+### C4 – Context Diagram
+```mermaid
+flowchart LR
+    User[Customs Operator] --> FE[Frontend Web App]
+    FE --> BE[DUA Streamliner Backend]
+    BE --> S3[Amazon S3]
+    BE --> DB[(Amazon RDS PostgreSQL)]
+    BE --> OCR[OCR / Semantic Extraction Providers]
+    BE --> Mail[Email OTP Service]
+```
+
+### C4 – Container Diagram
+```mermaid
+flowchart TD
+    FE[Frontend SPA] --> API[DUA.API - ASP.NET Core REST API]
+    API --> APP[DUA.Application]
+    APP --> DOM[DUA.Domain]
+    APP --> INF[DUA.Infrastructure]
+
+    INF --> DB[(RDS PostgreSQL)]
+    INF --> S3[Amazon S3]
+    INF --> SQS[Amazon SQS]
+    INF --> SEC[AWS Secrets Manager]
+    INF --> EXT[OCR / AI Providers]
+
+    SQS --> WRK[DUA.Workers]
+    WRK --> INF
+
+    API --> OBS[CloudWatch / OpenTelemetry]
+    WRK --> OBS
+```
+
+### Code Layer Diagram
+``` mermaid
+flowchart TD
+    A[DUA.API] --> B[DUA.Application]
+    B --> C[DUA.Domain]
+    B --> D[DUA.Infrastructure]
+    E[DUA.Workers] --> B
+    E --> D
+    D --> F[(RDS PostgreSQL)]
+    D --> G[Amazon S3]
+    D --> H[Amazon SQS]
+```
+
+---
+## 2.9 Design Considerations
+- The backend keeps the same repository as the frontend to simplify delivery, review, and traceability of commits.
+- Long-running operations are asynchronous by design.
+- Business rules must remain in the application and domain layers, not in controllers.
+- Secrets and sensitive environment values are never stored in source code.
+- The backend must expose stable contracts for the frontend workflow already defined in the project.
+- Storage, queueing, validation, OCR, and template rendering must remain replaceable through interfaces.
+
+---
+## 2.10 Source Code
+The backend source code is organized as a practical monorepo module under ./backend/.
+
+Key folders:
+- [`backend/src/DUA.API/`](./backend/src/DUA.API/) 
+- [`backend/src/DUA.Application/`](./backend/src/DUA.Application/)
+- [`backend/src/DUA.Domain/`](./backend/src/DUA.Domain/)
+- [`backend/src/DUA.Infrastructure/`](./backend/src/DUA.Infrastructure/)
+- [`backend/src/DUA.Workers/`](./backend/src/DUA.Workers/)
+- [`backend/tests/`](./backend/tests/)
+- [`backend/terraform/`](./backend/terraform/)
+
 ---
