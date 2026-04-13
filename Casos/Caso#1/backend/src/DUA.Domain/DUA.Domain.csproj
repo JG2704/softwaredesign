@@ -1,0 +1,6 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RootNamespace>DUA.Domain</RootNamespace>
+    <AssemblyName>DUA.Domain</AssemblyName>
+  </PropertyGroup>
+</Project>
