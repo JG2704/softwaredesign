@@ -1,42 +1,271 @@
-# Repositorio para el caso #2 del curso de Diseño de Software, I Semestre 2026
+# IA Detector
 
-Participantes:
+## Caso #2 — Crisis de la Verdad
+
+IA Detector is a software product prototype designed for the Software Design course. The project focuses on the problem of misinformation, AI-generated content, and the difficulty journalists face when verifying suspicious information before publishing.
+
+---
+
+## Team Members
+
 - Fabricio Monge Brenes
 - Santiago Calderón Zúñiga
-- Tomás Blando Reyes
 - Christopher Jiménez Gutiérrez
 - José Gabriel Marín Aguilar
 
-# Tema
+---
 
-## Trabajo en clase #1
+## Problem Statement
 
-# Caso 2 - Crisis de la Verdad
-- Fabricio Monge Brenes
-- Santiago Calderón Zúñiga
-- Tomás Blando Reyes
-- Christopher Jiménez Gutiérrez
-- José Gabriel Marín Aguilar
+**Reduce the time to confirm truthfully information.**
 
-## Área del problema
+---
 
-El enfoque sería en la investigación de veracidad de posibles videos hechos por IA, mezclando una búsqueda de la fuente original de la imagen y/o video, y una verificación (con herramientas ya existentes) del archivo multimedia para analizar el porcentaje de probabilidad de que haya sido hecho por una inteligencia artificial.
+## Product Definition
 
-## Tipos de personas involucradas
+IA Detector helps journalists and editorial teams reduce the time required to verify suspicious digital content.
 
-- Una muestra aleatoria entre gente de ciudad
-- Personas que vivan en entornos rurales
-- Adultos mayores (+65 años)
-- Periodistas
-- Creadores de contenido
+The system allows a user to submit suspicious text, URL, image, or screenshot. IA Detector extracts the main claim, searches evidence or previous fact-checking results, calculates evidence and risk scores, and classifies the case as:
 
-## Lista de preguntas 
+- `PASS`
+- `NO_PASS`
+- `HUMAN_REVIEW`
 
-- ¿Cuáles son sus fuentes de información recurrentes?
-- ¿Qué aplicaciones suele utilizar para informarse?
-- En una escala del 1 al 10, ¿qué tanto suele informarse de noticias?
-- ¿Suele verificar que la información que lee sea verdad?
-- ¿Qué tan familiarizado está con el concepto de contenido generado por inteligencia artificial?
-- Mostrando 5 imágenes/videos virales, ¿sabe identificar cuáles fueron hechos por Inteligencia Artificial?
-- Antes de compartir una noticia o video, ¿suele verificar si es verdadero?
-- ¿Le gustaría contar con una herramienta que le ayude a verificar imágenes y videos? ¿Por qué?
+IA Detector does not publish content automatically and does not present results as absolute `TRUE` or `FALSE`. The system supports editorial verification by showing evidence, risk signals, scores, and case status.
+
+---
+
+## Current MVP Scope
+
+The MVP focuses on the main verification flow:
+
+1. A journalist receives suspicious content.
+2. The journalist submits text, URL, image, or screenshot into IA Detector.
+3. The system extracts the main claim.
+4. The system searches evidence or previous fact-checking results.
+5. The system calculates `evidenceScore`, `riskScore`, and `sourceAgreement`.
+6. The system classifies the case as `PASS`, `NO_PASS`, or `HUMAN_REVIEW`.
+7. The journalist reviews the result, evidence, and risk signals.
+8. The case is stored in history with a basic audit log.
+
+Full MVP scope is documented here:
+
+- [MVP Scope](./docs/product/mvp-scope.md)
+
+---
+
+## Repository Structure
+
+```text
+caso2-ia-detector/
+├── README.md
+│
+├── docs/
+│   ├── product/
+│   │   ├── problem-statement.md
+│   │   ├── mvp-scope.md
+│   │   └── goal-map.md
+│   │
+│   ├── ux/
+│   │   ├── prototype.md
+│   │   ├── ux-testing-plan.md
+│   │   └── ux-testing-results.md
+│   │
+│   ├── frontend/
+│   │   └── frontend-design.md
+│   │
+│   ├── backend/
+│   │   └── backend-design.md
+│   │
+│   ├── data/
+│   │   └── database-design.md
+│   │
+│   ├── architecture/
+│   │   ├── system-integrations.md
+│   │   ├── architectural-patterns.md
+│   │   └── agentic-patterns.md
+│   │
+│   ├── diagrams/
+│   │   └── goal-map.png
+│   │
+│   ├── pitch/
+│   │   └── demo-script.md
+│   │
+│   ├── implementation/
+│   │   └── mvp-implementation-plan.md
+│
+├── src/
+│   ├── frontend/
+│   └── backend/
+│
+├── database/
+│   ├── dbml/
+│   │   └── ia-detector.dbml
+│   │
+│   ├── migrations/
+│   │
+│   └── seed/
+│       └── README.md
+│
+├── prisma/
+│   └── schema.prisma
+│
+└── agents/
+    └── README.md
+```
+
+---
+
+## Product Documentation
+
+- [Problem Statement](./docs/product/problem-statement.md)
+- [MVP Scope](./docs/product/mvp-scope.md)
+- [Goal Map](./docs/product/goal-map.md)
+
+---
+
+## UX Documentation
+
+- [UX Prototype](./docs/ux/prototype.md)
+- [UX Testing Plan](./docs/ux/ux-testing-plan.md)
+- [UX Testing Results](./docs/ux/ux-testing-results.md)
+
+The UX prototype will be created in **Figma** and tested using **Maze** with at least 4 design students who are not members of the IA Detector team.
+
+---
+
+## Frontend Design
+
+- [Frontend Design Document](./docs/frontend/frontend-design.md)
+
+The frontend design document defines:
+
+- technology stack,
+- authentication and authorization,
+- UX/UI structure,
+- component strategy,
+- layered design,
+- frontend design patterns,
+- verification states,
+- API contracts,
+- testing strategy,
+- observability events.
+
+---
+
+## Architecture Documentation
+
+- [System Integrations](./docs/architecture/system-integrations.md)
+- [Architectural Patterns](./docs/architecture/architectural-patterns.md)
+- [Agentic Patterns](./docs/architecture/agentic-patterns.md)
+
+Current architecture decisions include:
+
+- Google Fact Check Tools API as an evidence source.
+- AI provider access through an architectural pattern to avoid direct coupling.
+- Agentic decision flow using `PASS`, `NO_PASS`, and `HUMAN_REVIEW`.
+
+---
+
+## Backend and Data Design
+
+- [Backend Design Document](./docs/backend/backend-design.md)
+- [Database Design Document](./docs/data/database-design.md)
+- [DBML Model](./database/dbml/ia-detector.dbml)
+
+---
+
+## MVP Implementation Plan
+
+- [MVP Implementation Plan](./docs/implementation/mvp-implementation-plan.md)
+
+---
+
+## MVP Local Execution
+
+Pending.
+
+This section will later include:
+
+- frontend execution steps,
+- backend execution steps,
+- database setup,
+- environment variables,
+- seed data,
+- local demo flow.
+
+---
+
+## AI Development Agents
+
+- [AI Development Agents](./agents/README.md)
+
+This document defines the specialized agents required for MVP construction:
+
+- SOLID reviewer agent,
+- architecture validation agent,
+- frontend agent,
+- backend agent,
+- database agent,
+- testing agent.
+
+Each agent usage must document:
+
+- findings,
+- suggested corrections,
+- corrections applied.
+
+---
+
+## Sales Pitch and Demo
+
+- [Demo Script](./docs/pitch/demo-script.md)
+
+The final demo will be executed locally and must show the main MVP flow without using slides.
+
+---
+
+## Development Documentation Rules
+
+All design documents must be written for a real development team.
+
+Each document must define:
+
+- concrete decisions,
+- `/src` locations,
+- responsibilities,
+- inputs and outputs,
+- states,
+- business rules,
+- exceptions,
+- DTOs or contracts when applicable,
+- developer restrictions,
+- acceptance criteria when applicable.
+
+Avoid generic descriptions such as “use best practices”, “handle errors”, or “make it scalable” unless the document explains exactly how the development team must implement it.
+
+---
+
+## Current Status
+
+| Area | Status |
+|---|---|
+| Repository structure | Created |
+| Problem statement | Created |
+| MVP scope | Created |
+| UX prototype requirements | Created |
+| UX testing plan | Created |
+| UX testing results | Pending testing |
+| Frontend design | Created |
+| System integrations | Created |
+| Architectural patterns | Created |
+| Agentic patterns | Created |
+| Backend design | Created |
+| Data design | Created |
+| DBML model | Created |
+| Prisma schema | Created |
+| Seed data plan | Created |
+| AI development agents | Created |
+| MVP implementation plan | Created |
+| MVP implementation | Pending |
+| Sales pitch | Pending |
