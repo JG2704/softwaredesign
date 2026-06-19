@@ -10,6 +10,7 @@ This `README.md` is the single source of truth for the MVP design and implementa
 
 ## Table of Contents
 
+0. [Developer Onboarding and Design Contract](#0-developer-onboarding-and-design-contract)
 1. [Product Goal and MVP Boundary](#1-product-goal-and-mvp-boundary)
 2. [Functional Use Cases](#2-functional-use-cases)
 3. [Verification Analysis Pipeline](#3-verification-analysis-pipeline)
@@ -30,6 +31,505 @@ This `README.md` is the single source of truth for the MVP design and implementa
 18. [Case #2 Traceability and Team Ownership](#18-case-2-traceability-and-team-ownership)
 19. [Sales Pitch and Demo Plan](#19-sales-pitch-and-demo-plan)
 
+
+---
+
+## 0. Developer Onboarding and Design Contract
+
+This section is written for a developer who has never worked on IA Detector before. It defines the mandatory development context, local execution contract, environment contract, validation expectations, and architectural rules that must guide implementation.
+
+This README is a **design document and implementation contract**. It is not a progress report, a temporary status log, or a description of what happens to be present in one local machine. A developer must read it as the authoritative set of instructions for building the MVP correctly.
+
+The document defines:
+
+- what the system must do;
+- which frontend pages, backend modules, endpoints, DTOs, states, and database records must exist;
+- how the frontend, backend, database, storage, and integrations must communicate;
+- which local tools are required to run and validate the system;
+- which architectural decisions are mandatory;
+- which behaviors are accepted or rejected by the MVP;
+- which rules prevent developers from making undocumented assumptions.
+
+Design authority rule:
+
+```text
+A developer must not implement a feature only from memory, from a chat conversation, or from an isolated code snippet. The README, Prisma schema, DBML model, UX assets, and agent findings must remain aligned, with this README acting as the main implementation contract.
+```
+
+Completeness rule:
+
+```text
+A feature is not considered design-ready unless this README defines its endpoint contract, input/output DTOs, business rules, persistence behavior, error behavior, security rules, observability expectations, and acceptance criteria.
+```
+
+### 0.1 How to Read This README
+
+| Step | What to Read | Why |
+|---:|---|---|
+| 1 | Section 0 | Understand the design contract, local development environment, Docker, ports, variables, validation flow, and responsibility rules. |
+| 2 | Sections 1–3 | Understand the product goal, MVP boundary, use cases, and verification pipeline. |
+| 3 | Sections 4–6 | Understand frontend pages, backend modules, DTOs, endpoints, and API behavior. |
+| 4 | Section 7 | Understand the database model that Prisma and DBML must support. |
+| 5 | Sections 8–11 | Understand integrations, design patterns, security, and observability. |
+| 6 | Sections 12–16 | Understand architecture, UX evidence, deployment, acceptance criteria, repository structure, and validation commands. |
+| 7 | Section 17 | Understand how AI-assisted agents must be used as review and generation support. |
+| 8 | Sections 18–19 | Understand project traceability, team ownership, sales pitch, and demo plan. |
+
+Reading rule:
+
+```text
+When a developer receives a task, they must first locate the corresponding use case, endpoint contract, module contract, data model, security rule, and acceptance criterion before writing code.
+```
+
+### 0.2 Design Contract Scope
+
+The README describes the **target MVP design**. It must be used by developers as a construction contract, not as a checklist of temporary implementation status.
+
+The scope is organized by responsibility:
+
+| Area | What the README Defines |
+|---|---|
+| Product | Goal, user roles, MVP boundary, excluded behavior, and editorial purpose. |
+| UX | Pages, user flows, component responsibilities, messages, accessibility, and visual rules. |
+| Backend | Modules, services, repositories, DTOs, guards, validation behavior, error behavior, and pipeline rules. |
+| API | Endpoint paths, request bodies, response bodies, authorization, status codes, and error codes. |
+| Data | Tables, enums, relationships, ownership rules, indexes, and persistence requirements. |
+| Integrations | Provider boundaries, adapter behavior, mock mode, failure behavior, retries, and cache behavior. |
+| Security | Authentication, authorization, secret handling, upload safety, error safety, and privacy rules. |
+| Observability | Trace IDs, audit events, logs, provider status, cache status, and health checks. |
+| Local execution | Required tools, ports, Docker database, environment variables, setup commands, and validation commands. |
+| QA | Acceptance criteria, smoke tests, consistency checks, and review gates. |
+
+Design-vs-code rule:
+
+```text
+If the codebase contradicts this README, the team must resolve the conflict deliberately. Either the code must be corrected to match the design contract, or the README, Prisma schema, DBML, UX assets, and acceptance criteria must be updated together to reflect an approved design change.
+```
+
+Design quality gate:
+
+```text
+A section is robust enough only when it gives a developer a closed decision, a concrete responsibility, expected inputs and outputs, failure behavior, and an acceptance condition. Vague intentions such as "handle later", "as needed", or "depending on implementation" must be replaced by explicit contracts before development starts.
+```
+
+### 0.3 Local Development Environment Contract
+
+IA Detector must be runnable in a reproducible local development environment. The local environment uses separate processes for the frontend, backend, and database.
+
+```text
+Browser
+  │
+  │  http://localhost:5173
+  ▼
+Frontend development server
+  │
+  │  VITE_API_BASE_URL=http://localhost:3000/api
+  ▼
+NestJS backend API
+  │
+  │  DATABASE_URL=postgresql://postgres:postgres@localhost:5432/ia_detector?schema=public
+  ▼
+PostgreSQL Docker container
+```
+
+| Component | Required Technology | Local Address | Responsibility |
+|---|---|---|---|
+| Frontend development server | Vite + React | `http://localhost:5173` | Serves the web application during development. |
+| Backend API server | NestJS | `http://localhost:3000/api` | Exposes authentication, upload, verification, audit, and health endpoints. |
+| Database server | PostgreSQL in Docker | `localhost:5432` | Stores users, refresh tokens, uploaded files, verification cases, evidence, risk signals, cache entries, and audit logs. |
+
+CORS rule:
+
+```text
+The backend must use FRONTEND_URL to decide which frontend origin is allowed to call the API during local development.
+```
+
+Frontend API rule:
+
+```text
+The frontend must use VITE_API_BASE_URL to decide where backend requests must be sent. For local development, it must point to http://localhost:3000/api.
+```
+
+Database rule:
+
+```text
+PostgreSQL must be available before running Prisma commands or starting backend features that touch persistence.
+```
+
+### 0.4 Required Local Tools
+
+| Tool | Required Version / Notes | Why It Is Needed |
+|---|---|---|
+| Node.js | `22.x LTS` | Runs NestJS, TypeScript tooling, Prisma CLI, and frontend tooling. |
+| npm | Installed with Node.js | Installs dependencies and runs project scripts. |
+| Docker Desktop | Engine must be running before database commands are executed. | Runs the local PostgreSQL database. |
+| PostgreSQL Docker image | `postgres:15` | Provides a local database compatible with the MVP persistence contract. |
+| Git | Any modern version | Version control, clean ZIP generation, diff checks, and grep checks. |
+| PowerShell | Windows PowerShell or PowerShell 7 | Command examples in this README use PowerShell syntax. |
+
+Docker requirement:
+
+```text
+The local MVP database must run through Docker unless the developer configures an equivalent PostgreSQL server that satisfies the same DATABASE_URL contract.
+```
+
+### 0.5 First-Time Local Setup Contract
+
+A developer starting from a clean clone must run the following sequence from the repository root.
+
+Install dependencies:
+
+```powershell
+npm.cmd install
+```
+
+Create the local PostgreSQL database container:
+
+```powershell
+docker run --name ia-detector-postgres `
+  -e POSTGRES_USER=postgres `
+  -e POSTGRES_PASSWORD=postgres `
+  -e POSTGRES_DB=ia_detector `
+  -p 5432:5432 `
+  -d postgres:15
+```
+
+Create `.env` from `.env.example` using safe local values:
+
+```env
+DATABASE_URL="postgresql://postgres:postgres@localhost:5432/ia_detector?schema=public"
+BACKEND_PORT=3000
+FRONTEND_URL="http://localhost:5173"
+JWT_ACCESS_SECRET="replace-with-local-development-secret"
+JWT_ACCESS_EXPIRES_IN="15m"
+JWT_REFRESH_SECRET="replace-with-local-refresh-secret"
+JWT_REFRESH_EXPIRES_IN="7d"
+VITE_API_BASE_URL="http://localhost:3000/api"
+```
+
+Generate Prisma Client:
+
+```powershell
+npm.cmd run db:generate
+```
+
+Apply the Prisma schema to the local database:
+
+```powershell
+npm.cmd run db:push
+```
+
+Start the backend:
+
+```powershell
+npm.cmd run dev:backend
+```
+
+Start the frontend development server:
+
+```powershell
+npm.cmd run dev:frontend
+```
+
+Expected backend base URL:
+
+```text
+http://localhost:3000/api
+```
+
+Expected frontend base URL:
+
+```text
+http://localhost:5173
+```
+
+### 0.6 Docker Database Operations and Diagnostics
+
+Start an existing local database container:
+
+```powershell
+docker start ia-detector-postgres
+```
+
+Stop the database container:
+
+```powershell
+docker stop ia-detector-postgres
+```
+
+Check whether the database container is running:
+
+```powershell
+docker ps
+```
+
+Inspect PostgreSQL container logs:
+
+```powershell
+docker logs ia-detector-postgres
+```
+
+Open a PostgreSQL shell inside the container:
+
+```powershell
+docker exec -it ia-detector-postgres psql -U postgres -d ia_detector
+```
+
+Reset the local database container only when local data can be deleted:
+
+```powershell
+docker stop ia-detector-postgres
+docker rm ia-detector-postgres
+
+docker run --name ia-detector-postgres `
+  -e POSTGRES_USER=postgres `
+  -e POSTGRES_PASSWORD=postgres `
+  -e POSTGRES_DB=ia_detector `
+  -p 5432:5432 `
+  -d postgres:15
+
+npm.cmd run db:push
+```
+
+Reset warning:
+
+```text
+Removing the Docker container deletes the local database stored inside that container. Do not reset the container when review, demo, or debugging data must be preserved.
+```
+
+### 0.7 Environment Variable Contract
+
+Local variables must be documented in `.env.example`. Real `.env` files must never be committed.
+
+| Variable | Used By | Required For | Description |
+|---|---|---|---|
+| `DATABASE_URL` | Backend / Prisma | Database persistence | PostgreSQL connection string. |
+| `BACKEND_PORT` | Backend | API server | Port where NestJS listens locally. |
+| `FRONTEND_URL` | Backend | CORS | Allowed frontend origin. |
+| `JWT_ACCESS_SECRET` | Backend | Access token signing | Secret used to sign and verify access tokens. |
+| `JWT_ACCESS_EXPIRES_IN` | Backend | Access token expiration | Expiration time for access tokens. |
+| `JWT_REFRESH_SECRET` | Backend | Refresh token signing | Secret used to sign and verify refresh tokens. |
+| `JWT_REFRESH_EXPIRES_IN` | Backend | Refresh token expiration | Expiration time for refresh tokens. |
+| `VITE_API_BASE_URL` | Frontend | API requests | Backend API base URL used by the frontend. |
+| `SUPABASE_URL` | Backend | Deployment/storage integration | Supabase project URL when managed services are used. |
+| `SUPABASE_SERVICE_ROLE_KEY` | Backend | Storage integration | Server-side Supabase key. Must never be exposed to frontend code. |
+| `SUPABASE_STORAGE_BUCKET` | Backend | Image upload | Storage bucket for uploaded screenshots/images. |
+| `FACT_CHECK_MODE` | Backend | Evidence provider | `mock` or `live`. Mock mode must be deterministic. |
+| `GOOGLE_FACT_CHECK_API_KEY` | Backend | Live fact-check provider | Provider key for live evidence search. |
+| `AI_MODE` | Backend | Claim extraction/OCR | `mock` or `live`. Mock mode must be deterministic. |
+| `OPENAI_API_KEY` | Backend | Live AI connector | Optional provider key for AI-assisted behavior. |
+| `FACT_CHECK_CACHE_TTL_MINUTES` | Backend | Evidence cache | Cache freshness duration. |
+| `MAX_IMAGE_SIZE_MB` | Backend / Frontend | Upload validation | Maximum accepted uploaded image size. |
+
+Secret rule:
+
+```text
+Secrets must be read from environment variables. They must not be hardcoded, committed, logged, returned in API responses, or exposed to frontend bundles.
+```
+
+Example-file rule:
+
+```text
+.env.example must contain every variable required by this contract using safe placeholder values. .env must contain real local values and must remain ignored by Git.
+```
+
+### 0.8 Project Scripts Contract
+
+| Script | Command | Purpose |
+|---|---|---|
+| `dev:backend` | `ts-node-dev --respawn --transpile-only --project tsconfig.backend.json src/backend/main.ts` | Starts the NestJS backend in watch mode. |
+| `dev:frontend` | `vite` | Starts the Vite frontend development server. |
+| `build:frontend` | `vite build` | Builds the frontend production bundle. |
+| `preview:frontend` | `vite preview` | Serves the built frontend locally for preview. |
+| `typecheck:frontend` | `tsc --project tsconfig.frontend.json --noEmit` | Runs TypeScript validation for the frontend. |
+| `test:frontend` | `vitest run` | Runs frontend unit/component tests. |
+| `db:generate` | `prisma generate` | Generates Prisma Client from `prisma/schema.prisma`. |
+| `db:push` | `prisma db push` | Pushes the Prisma schema to the configured PostgreSQL database. |
+| `prisma:format` | `prisma format` | Formats Prisma schema. |
+| `prisma:validate` | `prisma validate` | Validates Prisma schema and Prisma config. |
+| `validate` | `prisma format && prisma validate` | Runs Prisma format and validation together. |
+
+Script rule:
+
+```text
+If a script is added, removed, or renamed in package.json, this README must be updated in the same change so a new developer can run the project without guessing.
+```
+
+### 0.9 MVP Validation Flow
+
+The MVP must provide a reproducible validation flow. The commands below define the expected review path for a developer or reviewer using PowerShell.
+
+Health:
+
+```powershell
+Invoke-RestMethod `
+  -Method Get `
+  -Uri "http://localhost:3000/api/health"
+```
+
+Register:
+
+```powershell
+Invoke-RestMethod `
+  -Method Post `
+  -Uri "http://localhost:3000/api/auth/register" `
+  -ContentType "application/json" `
+  -Body '{"name":"Demo Journalist","email":"demo@iadetector.local","password":"Password123!"}'
+```
+
+Login:
+
+```powershell
+$login = Invoke-RestMethod `
+  -Method Post `
+  -Uri "http://localhost:3000/api/auth/login" `
+  -ContentType "application/json" `
+  -Body '{"email":"demo@iadetector.local","password":"Password123!"}'
+```
+
+Current user:
+
+```powershell
+Invoke-RestMethod `
+  -Method Get `
+  -Uri "http://localhost:3000/api/auth/me" `
+  -Headers @{ Authorization = "Bearer $($login.accessToken)" }
+```
+
+Create text verification:
+
+```powershell
+$report = Invoke-RestMethod `
+  -Method Post `
+  -Uri "http://localhost:3000/api/verifications" `
+  -Headers @{ Authorization = "Bearer $($login.accessToken)" } `
+  -ContentType "application/json" `
+  -Body '{"inputType":"TEXT","text":"Comunicado oficial confirma una nueva medida sanitaria nacional respaldada por varias fuentes relevantes."}'
+
+$report
+```
+
+List history:
+
+```powershell
+$history = Invoke-RestMethod `
+  -Method Get `
+  -Uri "http://localhost:3000/api/verifications" `
+  -Headers @{ Authorization = "Bearer $($login.accessToken)" }
+
+$history
+```
+
+Open detail:
+
+```powershell
+$caseId = $history[0].caseId
+
+Invoke-RestMethod `
+  -Method Get `
+  -Uri "http://localhost:3000/api/verifications/$caseId" `
+  -Headers @{ Authorization = "Bearer $($login.accessToken)" }
+```
+
+Image and URL validation rule:
+
+```text
+The final MVP validation suite must include equivalent commands for URL verification and image verification. The README must always contain enough commands for a reviewer to execute every MVP use case without asking the original team.
+```
+
+### 0.10 Common Local Errors and Fixes
+
+| Symptom | Likely Cause | Fix |
+|---|---|---|
+| `Cannot resolve environment variable: DATABASE_URL` | Prisma config cannot read `.env`. | Ensure `.env` exists and `prisma.config.ts` imports `dotenv/config`. |
+| `Cannot find module '.prisma/client/default'` | Prisma Client was not generated. | Run `npm.cmd run db:generate`. |
+| `PrismaClient needs to be constructed with a non-empty, valid PrismaClientOptions` | Prisma 7 requires a driver adapter. | Ensure `PrismaService` constructs `PrismaClient` with `@prisma/adapter-pg`. |
+| `ECONNREFUSED` from Prisma | PostgreSQL is not running on `localhost:5432`. | Open Docker Desktop and run `docker start ia-detector-postgres`. |
+| Docker says container name already exists | The container already exists. | Run `docker start ia-detector-postgres` instead of `docker run`. |
+| `409` when registering demo user | Demo email already exists. | Use another email or reset the local database. |
+| `401` on protected endpoint | Missing, invalid, revoked, or expired token. | Login again and pass `Authorization: Bearer <token>`. |
+| Port `3000` is already in use | Another backend process is running. | Stop the existing process or change `BACKEND_PORT`. |
+| Browser frontend cannot call backend | CORS origin mismatch. | Ensure `FRONTEND_URL` matches the frontend local URL. |
+| Frontend requests wrong backend URL | `VITE_API_BASE_URL` is missing or wrong. | Set `VITE_API_BASE_URL=http://localhost:3000/api`. |
+
+### 0.11 Development Responsibility Rules
+
+| Layer | Allowed Responsibility | Not Allowed |
+|---|---|---|
+| Controller | HTTP route, request body, path params, guards, DTO response. | Business rules, Prisma queries, password hashing, scoring, provider-specific logic. |
+| Guard | Authentication and authorization checks. | Creating users, creating cases, calculating reports, accessing provider APIs. |
+| Service | Business workflow, orchestration, validation of use-case rules, deterministic scoring, recommendation behavior. | Direct SQL/Prisma access, HTTP provider-specific JSON leakage, raw secret handling. |
+| Repository | Prisma persistence and database-specific queries. | Business decisions, request validation, recommendation rules, provider calls. |
+| DTO | API input and output shape. | Database queries, business logic, provider calls. |
+| PrismaService | Database client setup, connection lifecycle, health checks. | Feature-specific persistence methods or business rules. |
+| Integration client | External provider communication. | Returning raw provider JSON directly to controllers or frontend. |
+| Adapter | Converts provider-specific responses into internal DTOs. | Calling controllers, mutating database records, deciding recommendations. |
+
+Layering rule:
+
+```text
+Controllers call services. Services call repositories or ports. Repositories use Prisma. Integrations are accessed through ports/adapters. No layer may bypass its responsibility to make implementation faster.
+```
+
+### 0.12 Feature Extension Rule
+
+When adding or modifying a feature, a developer must update the design contract before or together with the source change.
+
+| Feature Type | Required Design Updates |
+|---|---|
+| New endpoint | Use case, API contract, DTOs, error behavior, security rule, acceptance criteria, validation command. |
+| New database field/table/enum | Data model contract, Prisma schema, DBML, repository contract, validation expectations. |
+| New frontend page | Page contract, route, API calls, loading/error behavior, accessibility rules, message catalog. |
+| New integration | Integration contract, provider status behavior, timeout/retry rules, cache behavior, security notes. |
+| New auth behavior | Security contract, token/cookie behavior, error codes, protected-route behavior, acceptance criteria. |
+| New upload behavior | Upload DTOs, storage rules, MIME/size limits, ownership, security controls, failure behavior. |
+| New agent usage | Agent workflow section and `docs/agent-findings.md` when a finding influences design or implementation. |
+
+Change rule:
+
+```text
+A pull request is incomplete if it changes behavior without updating the README sections that define that behavior.
+```
+
+### 0.13 Forbidden Implementation Assumptions
+
+Developers must not assume or implement the following:
+
+| Forbidden Assumption | Correct Rule |
+|---|---|
+| The system decides whether something is absolutely true or false. | The system generates a verification analysis report and editorial recommendation. |
+| `PASS`, `NO_PASS`, or `HUMAN_REVIEW` are valid product states. | Use `READY_FOR_EDITORIAL_REVIEW`, `DO_NOT_PUBLISH_YET`, and `NEEDS_MANUAL_REVIEW`. |
+| Empty evidence means the claim is false. | Empty evidence is a risk condition, not an absolute truth decision. |
+| Mock evidence is real fact-checking. | Mock mode is deterministic demo behavior and must be labeled as such in implementation logic and docs. |
+| Frontend validation is enough for security. | Backend must validate and authorize every protected operation. |
+| A user can access any case by `caseId`. | Users can access only their own resources unless role-based admin access explicitly allows otherwise. |
+| Raw provider responses can be returned to the frontend. | Provider data must be normalized through adapters before reaching API DTOs. |
+| `.env` can be committed for convenience. | `.env` must never be committed; `.env.example` must document safe placeholders. |
+| Prisma can be imported directly into controllers. | Prisma access must stay inside repository/infrastructure classes. |
+
+### 0.14 Review Readiness Checklist
+
+Before a design or implementation submission, the following must be true:
+
+```text
+[ ] README defines the feature behavior clearly enough for a junior developer.
+[ ] Frontend route contracts match API contracts.
+[ ] Backend module contracts match use cases.
+[ ] DTOs are documented with request/response examples.
+[ ] Prisma schema and DBML match the data model contract.
+[ ] Environment variables are documented in .env.example.
+[ ] Docker/PostgreSQL setup can be reproduced from a clean clone.
+[ ] Validation commands are documented and executable.
+[ ] Security rules cover authentication, authorization, secrets, uploads, and errors.
+[ ] No forbidden product labels are used in user-facing states.
+[ ] Agent usage and findings are documented when they affect the design.
+```
+
+Review rule:
+
+```text
+Documentation is incomplete if a junior developer cannot understand what to build, where each responsibility belongs, how the system runs locally, how data flows through the product, how errors are handled, and how the MVP is accepted.
+```
 
 ---
 
@@ -99,7 +599,7 @@ The system supports editorial judgment. It does not replace journalists, editors
 | Real deepfake detection | Requires specialized models and validation outside MVP scope. |
 | Automatic publishing | The system supports verification, not publication. |
 | TRUE/FALSE verdict | The system generates an analysis report, not an absolute truth label. |
-| Full newsroom collaboration | Comments, assignments, approvals, and multi-user workflows are future scope. |
+| Full newsroom collaboration | Comments, assignments, approvals, and multi-user workflows are outside MVP scope. |
 | Browser extension | MVP is a web application. |
 | Mobile app | MVP targets desktop web usage. |
 | Real-time collaborative editing | Not required for the first implementation. |
@@ -120,6 +620,19 @@ The system supports editorial judgment. It does not replace journalists, editors
 | Audit trail works | Each verification case stores traceable workflow events. |
 | Mock mode works | The system can run without real external AI/OCR or fact-checking credentials. |
 | UX evidence is controlled | Prototype and UX testing evidence are linked or stored only when real and final. |
+
+
+### 1.7 Non-Negotiable Product Decisions
+
+| Decision | Reason | Developer Instruction |
+|---|---|---|
+| The product does not return absolute truth labels. | Editorial verification requires human judgment and evidence context. | Never expose `TRUE`, `FALSE`, `PASS`, `NO_PASS`, or `HUMAN_REVIEW` as product states. |
+| The product returns a structured report. | A journalist needs to inspect evidence, risk, scores, source agreement, and audit trail. | Every verification response must use `VerificationAnalysisReportDTO`. |
+| Mock mode must be deterministic. | The MVP must be demoable without external credentials or unstable provider behavior. | Mock connectors must return predictable outputs based on documented scenarios. |
+| Evidence is not a verdict. | Supporting, partial, unknown, or contradictory evidence must be interpreted through rules. | Recommendation logic must use evidence, risk, agreement, and provider/cache status together. |
+| Auditability is mandatory. | Editorial decisions need traceability. | Important workflow steps must produce audit events with trace IDs. |
+| Ownership checks are mandatory. | Users must not access another user's files, cases, or audit logs. | Repository queries and guards must enforce user ownership or admin authorization. |
+
 
 ---
 
@@ -759,28 +1272,27 @@ This example is internally consistent with the recommendation rules because it c
 
 ### 4.1 Frontend Technology Contract
 
-| Concern | Decision | Version |
-|---|---|---|
-| Runtime | Node.js | `22.x LTS` |
-| Framework | React | `19.x` |
-| Build tool | Vite | `7.x` |
-| Language | TypeScript | `5.x` |
-| Styling | Tailwind CSS | `4.x` |
-| UI components | shadcn/ui | Package version defined in `package.json` when implementation starts. |
-| Routing | React Router | `7.x` |
-| API client | Axios | `1.x` |
-| Server state | TanStack Query | `5.x` |
-| Local UI state | Zustand | `5.x` |
-| Forms | React Hook Form | `7.x` |
-| Validation | Zod | `4.x` |
-| Unit/component tests | Vitest + React Testing Library | Vitest `3.x`, RTL `16.x` |
-| E2E tests | Playwright | `1.x` |
-| Hosting target | Vercel | Managed platform, no application package version. |
+| Concern              | Decision                       | Version                                                                              |
+| -------------------- | ------------------------------ | ------------------------------------------------------------------------------------ |
+| Runtime              | Node.js                        | `22.x LTS`                                                                           |
+| Framework            | React                          | `19.x`                                                                               |
+| Build tool           | Vite                           | `8.x`                                                                                |
+| Language             | TypeScript                     | `5.x`                                                                                |
+| Styling              | Tailwind CSS                   | `4.x`                                                                                |
+| UI components        | shadcn/ui                      | Package version must be defined in `package.json` by the implementing developer. |
+| Routing              | React Router                   | `7.x`                                                                                |
+| API client           | Axios                          | `1.x`                                                                                |
+| Server state         | TanStack Query                 | `5.x`                                                                                |
+| Local UI state       | Zustand                        | `5.x`                                                                                |
+| Forms                | React Hook Form                | `7.x`                                                                                |
+| Validation           | Zod                            | `4.x`                                                                                |
+| Unit/component tests | Vitest + React Testing Library | Vitest `4.x`, RTL `16.x`                                                             |
+| Hosting target       | Vercel                         | Managed platform, no application package version.                                    |
 
 Implementation rule:
 
 ```text
-If a dependency version changes during implementation, this table must be updated in the same commit.
+If a dependency version changes, this table and `package.json` must be updated in the same change.
 ```
 
 ### 4.2 Frontend Authentication Rule
@@ -818,6 +1330,24 @@ src/frontend/
     ├── errors/
     └── types/
 ```
+#### 4.3.1 Frontend Implementation Reference Map
+
+The frontend contract is implemented under `src/frontend`. These references allow developers to jump from this README to the exact files that implement each UI responsibility.
+
+| Responsibility | Source path | Notes |
+|---|---|---|
+| Route registration and protected routes | [`src/frontend/app/routes.tsx`](src/frontend/app/routes.tsx) | Defines `/login`, `/register`, `/app`, `/app/verification/:caseId`, `/app/history`, and `/app/history/:caseId`. |
+| Login page | [`src/frontend/features/auth/pages/LoginPage.tsx`](src/frontend/features/auth/pages/LoginPage.tsx) | Handles login form validation, login action, error display, and navigation to `/app`. |
+| Register page | [`src/frontend/features/auth/pages/RegisterPage.tsx`](src/frontend/features/auth/pages/RegisterPage.tsx) | Handles account creation form validation, register action, and return navigation to login. |
+| Main verification workspace | [`src/frontend/features/verification/pages/VerificationHubPage.tsx`](src/frontend/features/verification/pages/VerificationHubPage.tsx) | Handles text, URL, and image input modes; image upload; verification submission; and recent cases. |
+| Verification result page | [`src/frontend/features/verification/pages/VerificationResultPage.tsx`](src/frontend/features/verification/pages/VerificationResultPage.tsx) | Loads one verification report and delegates report rendering to `VerificationReportView`. |
+| History page | [`src/frontend/features/history/pages/VerificationHistoryPage.tsx`](src/frontend/features/history/pages/VerificationHistoryPage.tsx) | Loads the current user's previous verification cases and navigates to case detail. |
+| History case detail page | [`src/frontend/features/history/pages/VerificationCaseDetailPage.tsx`](src/frontend/features/history/pages/VerificationCaseDetailPage.tsx) | Loads a saved case from history and reuses `VerificationReportView`. |
+| Shared report renderer | [`src/frontend/shared/components/report/VerificationReportView.tsx`](src/frontend/shared/components/report/VerificationReportView.tsx) | Renders extracted claim, partial report warning, recommendation, scores, evidence, risk signals, and audit trail. |
+| Frontend API client | [`src/frontend/shared/api/verificationApi.ts`](src/frontend/shared/api/verificationApi.ts) | Encapsulates frontend calls for uploads, verification creation, history, and detail. |
+| HTTP client and API error normalization | [`src/frontend/shared/api/httpClient.ts`](src/frontend/shared/api/httpClient.ts) | Defines the shared Axios client and `toApiError` behavior. |
+| Frontend DTOs/types | [`src/frontend/shared/types/verification.ts`](src/frontend/shared/types/verification.ts) | Defines frontend report, evidence, risk, history, and request types. |
+| User-facing recommendation labels | [`src/frontend/shared/components/report/labels.ts`](src/frontend/shared/components/report/labels.ts) | Maps internal recommendation enums to user-facing editorial labels. |
 
 ### 4.4 Page Contract — `/login`
 
@@ -1002,7 +1532,7 @@ The frontend must remain responsive during report generation, history loading, a
 
 | Concern                  | Strategy                                                                                                 |
 | ------------------------ | -------------------------------------------------------------------------------------------------------- |
-| Lazy loading             | Route-level pages should be lazy loaded when implementation starts.                                      |
+| Lazy loading             | Route-level pages should be lazy loaded during frontend implementation.                                  |
 | Code splitting           | Keep feature modules separated by route and domain: auth, verification, history, audit.                  |
 | API caching              | Use TanStack Query for server data such as current user, history, case detail, and audit trail.          |
 | Avoid duplicate requests | Use query keys based on endpoint and parameters. Disable duplicate submit while verification is running. |
@@ -1025,24 +1555,26 @@ Performance optimizations must not hide verification context. Evidence, risk sig
 
 ### 5.1 Backend Technology Contract
 
-| Concern | Decision | Version |
-|---|---|---|
-| Runtime | Node.js | `22.x LTS` |
-| Framework | NestJS | `11.x` |
-| Language | TypeScript | `5.x` |
-| ORM | Prisma | `7.x` |
-| Database | PostgreSQL through Supabase | PostgreSQL `15+` |
-| File storage | Supabase Storage | Managed platform, no application package version. |
-| Authentication | JWT access token + httpOnly refresh token | `@nestjs/jwt` compatible |
-| Password hashing | Argon2id using `argon2` package | Package version defined in `package.json` when implementation starts. |
-| API documentation | OpenAPI / Swagger | Nest Swagger-compatible |
-| Testing | Jest + Supertest | Jest `30.x`, Supertest `7.x` |
-| Backend hosting target | Render | Managed platform, no application package version. |
+| Concern                   | Decision                                                                       | Version                                           |
+| ------------------------- | ------------------------------------------------------------------------------ | ------------------------------------------------- |
+| Runtime                   | Node.js                                                                        | `22.x LTS`                                        |
+| Framework                 | NestJS                                                                         | `^11.0.0`                                         |
+| Language                  | TypeScript                                                                     | `^5.0.0`                                          |
+| ORM                       | Prisma                                                                         | `^7.8.0`                                          |
+| Prisma PostgreSQL adapter | `@prisma/adapter-pg`                                                           | `^7.8.0`                                          |
+| Database                  | Local PostgreSQL for MVP; managed PostgreSQL compatible with Supabase for deployment | PostgreSQL `15+`                                  |
+| PostgreSQL driver         | `pg`                                                                           | `^8.21.0`                                         |
+| Authentication            | JWT access token + httpOnly refresh token                                      | `@nestjs/jwt ^11.0.2`                             |
+| Password hashing          | Argon2id using `argon2` package                                                | `^0.44.0`                                         |
+| Environment variables     | `dotenv`                                                                       | `^17.4.2`                                         |
+| API documentation         | OpenAPI / Swagger                                                              | Nest Swagger-compatible                           |
+| Testing                   | TypeScript validation, Prisma validation, frontend Vitest tests, and manual API smoke tests | Vitest `4.x` for frontend tests                   |
+| Backend hosting target    | Render                                                                         | Managed platform, no application package version. |
 
 Implementation rule:
 
 ```text
-If a dependency version changes during implementation, this table must be updated in the same commit.
+If a dependency version changes, this table and `package.json` must be updated in the same change.
 ```
 
 ### 5.2 Backend Source Structure
@@ -1082,6 +1614,30 @@ src/backend/
     ├── errors/
     ├── logging/
     └── validation/
+```
+
+
+### 5.2.1 Feature-to-Module Map
+
+This table tells developers where each major backend responsibility belongs. It prevents a junior developer from guessing where to place code.
+
+| Feature / Responsibility | Controller Boundary | Application Service(s) | Repository / Infrastructure | Main DTOs |
+|---|---|---|---|---|
+| Health check | `HealthController` | `HealthService` | `PrismaService.checkConnection()` | Health response DTO shape defined by controller/service. |
+| Registration | `AuthController` | `RegisterService`, `PasswordHasher` | `UserRepository` | `RegisterRequestDTO`, `UserDTO` |
+| Login | `AuthController` | `LoginService`, `PasswordHasher` | `UserRepository`, `RefreshTokenRepository` for session rotation | `LoginRequestDTO`, `AuthResponseDTO` |
+| Current user | `AuthController` + `JwtAuthGuard` | Auth session lookup service when separated | `UserRepository` | `AuthenticatedRequest`, `UserDTO` |
+| Image upload | Upload controller | `UploadImageService` | `UploadedFileRepository`, storage service | `UploadedFileDTO` |
+| Verification creation | `VerificationController` | `CreateVerificationCaseService` and verification pipeline services | `VerificationRepository`, `EvidenceRepository`, `RiskSignalRepository`, `AuditLogRepository`, cache repository | `CreateVerificationRequestDTO`, `VerificationAnalysisReportDTO` |
+| Verification history | `VerificationController` | `ListVerificationHistoryService` | `VerificationRepository` | `VerificationHistoryItemDTO` |
+| Verification detail | `VerificationController` | `GetVerificationCaseService` | `VerificationRepository` | `VerificationAnalysisReportDTO` |
+| Audit trail | Audit controller or report detail panel | `GetAuditTrailService` | `AuditLogRepository` | `AuditTrailEventDTO` |
+| External evidence | No controller access | `FactCheckEvidenceService` | Provider port, adapter, cache repository | `EvidenceSearchResult`, `EvidenceCandidate`, `EvidenceDTO` |
+
+Placement rule:
+
+```text
+If a developer cannot identify the correct row in this table for a change, they must update the design contract before implementing the change.
 ```
 
 ### 5.3 Module Contract — `CreateVerificationCaseService`
@@ -1226,7 +1782,7 @@ This section defines operational backend and data-layer decisions required for l
 | Rollback strategy | Local MVP rollback is handled by reverting commits and reapplying migrations from a clean local database. | Production-style rollback scripts are not required for MVP, but migration changes must be small and reviewable. |
 | Connection pooling     | Local MVP uses the default Prisma/PostgreSQL connection behavior.                                         | If deployed to Supabase or Render, connection limits must be reviewed and pooling configured according to the provider environment. |
 | Long-running processes | Verification analysis must run synchronously for MVP unless response time becomes unacceptable.           | If processing grows, the pipeline can later move to a queue-based worker model.                                                     |
-| Queues                 | No queue is required for the first local MVP.                                                             | Queue design is future scope unless provider latency blocks the demo flow.                                                          |
+| Queues                 | No queue is required for the first local MVP.                                                             | Queue design is outside MVP scope unless provider latency blocks the demo flow.                                                          |
 | Threading | Node.js event loop is sufficient for MVP. | CPU-heavy AI, OCR, or image processing must not be added to the main request thread without reassessment. |
 | Caching                | Fact-check evidence cache is stored in `fact_check_cache`.                                                | Fresh cache may be used as `HIT`; expired cache may only be used as `STALE_HIT` after provider failure.                             |
 | Backups                | Local MVP does not require automated backups.                                                             | For deployed environments, database backups must be enabled through the managed provider.                                           |
@@ -1240,49 +1796,109 @@ Operational shortcuts are allowed for local MVP only when they do not contradict
 
 ### 5.14 Local MVP Data Initialization Contract
 
-The MVP must be easy to run locally for development, review, and demo.
+The MVP must be easy to run locally for development, review, and demo. Local execution uses Docker for PostgreSQL and Prisma for schema synchronization.
 
-| Artifact                         | Purpose                                                         | Required for MVP                            |
-| -------------------------------- | --------------------------------------------------------------- | ------------------------------------------- |
-| `.env.example`                   | Documents required environment variables without real secrets.  | Yes                                         |
-| `prisma/schema.prisma`           | Defines the database model.                                     | Yes                                         |
-| `database/dbml/ia-detector.dbml` | Documents the relational design.                                | Yes                                         |
-| Prisma migrations                | Creates database schema from Prisma once implementation starts. | Required when persistence is implemented    |
-| Seed script                      | Creates demo users, mock cases, or repeatable local data.       | Required when MVP demo needs preloaded data |
-| Mock providers                   | Allow demo without real AI/OCR or fact-checking credentials.    | Yes                                         |
-| Local run scripts                | Start frontend, backend, and data validation commands.          | Required when MVP code exists               |
+| Artifact | Purpose | Required for MVP |
+|---|---|---|
+| `.env.example` | Documents required environment variables without real secrets. | Yes |
+| `.env` | Local developer-specific environment values. | Required locally but must not be committed. |
+| `prisma/schema.prisma` | Defines the database model used by Prisma. | Yes |
+| `database/dbml/ia-detector.dbml` | Documents the relational model for review. | Yes |
+| `prisma.config.ts` | Loads Prisma schema location and `DATABASE_URL`. | Yes |
+| Docker PostgreSQL container | Runs local PostgreSQL database. | Yes for the standard local setup. |
+| Prisma Client | Generated database client used by backend repositories. | Yes |
+| Mock providers | Allow demo without real AI/OCR/fact-checking credentials. | Yes |
+| Local run scripts | Start backend and synchronize database schema. | Yes |
 
-Recommended local setup flow once implementation starts:
+Standard local database container:
 
 ```powershell
-npm install
-$env:DATABASE_URL="postgresql://user:password@localhost:5432/ia_detector"
-npm run validate
+docker run --name ia-detector-postgres `
+  -e POSTGRES_USER=postgres `
+  -e POSTGRES_PASSWORD=postgres `
+  -e POSTGRES_DB=ia_detector `
+  -p 5432:5432 `
+  -d postgres:15
 ```
 
-Expected future MVP run flow:
+Required local `.env` shape:
 
-```powershell
-npm run dev:backend
-npm run dev:frontend
+```env
+DATABASE_URL="postgresql://postgres:postgres@localhost:5432/ia_detector?schema=public"
+BACKEND_PORT=3000
+FRONTEND_URL="http://localhost:5173"
+JWT_ACCESS_SECRET="replace-with-local-development-secret"
+JWT_ACCESS_EXPIRES_IN="15m"
 ```
 
-Expected future data setup flow:
+Backend setup flow from a clean clone:
 
 ```powershell
-npm run db:migrate
-npm run db:seed
+npm.cmd install
+docker start ia-detector-postgres
+npm.cmd run db:generate
+npm.cmd run db:push
+npm.cmd run dev:backend
+```
+
+If the Docker container does not exist yet, use the `docker run` command above instead of `docker start`.
+
+Required validation flow:
+
+```powershell
+npm.cmd run db:generate
+npm.cmd run db:push
+npm.cmd run validate
+```
+
+Required backend smoke test flow:
+
+```powershell
+# 1. Health
+Invoke-RestMethod -Method Get -Uri "http://localhost:3000/api/health"
+
+# 2. Login
+$login = Invoke-RestMethod `
+  -Method Post `
+  -Uri "http://localhost:3000/api/auth/login" `
+  -ContentType "application/json" `
+  -Body '{"email":"demo@iadetector.local","password":"Password123!"}'
+
+# 3. Create verification
+$report = Invoke-RestMethod `
+  -Method Post `
+  -Uri "http://localhost:3000/api/verifications" `
+  -Headers @{ Authorization = "Bearer $($login.accessToken)" } `
+  -ContentType "application/json" `
+  -Body '{"inputType":"TEXT","text":"Comunicado oficial confirma una nueva medida sanitaria nacional respaldada por varias fuentes relevantes."}'
+
+# 4. History
+$history = Invoke-RestMethod `
+  -Method Get `
+  -Uri "http://localhost:3000/api/verifications" `
+  -Headers @{ Authorization = "Bearer $($login.accessToken)" }
+
+# 5. Detail
+$caseId = $history[0].caseId
+
+Invoke-RestMethod `
+  -Method Get `
+  -Uri "http://localhost:3000/api/verifications/$caseId" `
+  -Headers @{ Authorization = "Bearer $($login.accessToken)" }
 ```
 
 Rules:
 
-| Rule                     | Requirement                                                                                |
-| ------------------------ | ------------------------------------------------------------------------------------------ |
-| No real secrets          | `.env.example` must contain placeholders only.                                             |
-| No real participant data | UX testing participant information must not be inserted into seed data.                    |
-| Repeatable demo          | Seed or mock data should produce deterministic demo behavior.                              |
-| README alignment         | When scripts are added to `package.json`, this section must be updated in the same commit. |
-| Safe local execution     | Data initialization commands must clearly target local development databases only.         |
+| Rule | Requirement |
+|---|---|
+| No real secrets | `.env.example` must contain placeholders only. |
+| No committed `.env` | `.env` must remain local and must not be committed. |
+| No committed dependencies | `node_modules/` must not be committed. |
+| Repeatable demo | Mock behavior should make the same type of input produce predictable report scenarios. |
+| Docker clarity | The README must state whether the local database is Docker-based or provider-based. |
+| README alignment | When scripts, ports, environment variables, or local services change, this section must be updated. |
+| Safe local execution | Data reset commands must clearly explain when local data will be deleted. |
+
 
 ---
 
@@ -1299,6 +1915,31 @@ Rules:
 | Traceability | All backend workflow errors include `traceId`. |
 | Provider errors | External provider errors must not expose secrets or raw provider messages. |
 | DTO format | API responses must use normalized internal DTOs. |
+
+
+### 6.1.1 Endpoint Coverage Rule
+
+The API contract defines the endpoints required by the MVP design. Each endpoint must have a documented method, path, authentication rule, request DTO, response DTO, error behavior, persistence effect, and acceptance criterion.
+
+| Endpoint | Required Behavior | Primary Contract Section |
+|---|---|---|
+| `GET /api/health` | Confirms backend availability and database connectivity without requiring authentication. | 6.3 |
+| `POST /api/auth/register` | Creates a `JOURNALIST` user after validating input and hashing the password. | 6.4 |
+| `POST /api/auth/login` | Validates credentials and creates an authenticated session. | 6.5 |
+| `POST /api/auth/refresh` | Rotates refresh tokens and returns a new access token. | 6.6 |
+| `POST /api/auth/logout` | Revokes the current refresh token and ends the session. | 6.7 |
+| `GET /api/auth/me` | Returns the authenticated user from the access token. | 6.8 |
+| `POST /api/uploads/image` | Uploads an image or screenshot and returns `UploadedFileDTO`. | 6.9 |
+| `POST /api/verifications` | Creates a verification case for `TEXT`, `URL`, or `IMAGE`. | 6.10 |
+| `GET /api/verifications` | Returns paginated verification history for the current user. | 6.11 |
+| `GET /api/verifications/:caseId` | Returns complete report detail when the user has access. | 6.12 |
+| `GET /api/audit/:caseId` | Returns audit events for a case when the user has access. | 6.13 |
+
+Endpoint rule:
+
+```text
+An endpoint is not design-complete unless the README defines its request, response, authorization requirement, validation rules, error responses, persistence behavior, and acceptance criteria.
+```
 
 ### 6.2 Shared DTOs
 
@@ -1769,7 +2410,7 @@ This endpoint is read-only in the MVP. It must not create audit events as a side
 
 ## 7. Data Model Contract
 
-The database model is implemented in [Prisma schema](prisma/schema.prisma) and documented in [DBML model](database/dbml/ia-detector.dbml).
+The database model must be defined in [Prisma schema](prisma/schema.prisma) and documented in [DBML model](database/dbml/ia-detector.dbml).
 
 Unless a constraint is explicitly described as database-level, the MVP may enforce it at application level through DTO validation, service rules, and repository guards. The README still defines the required behavior regardless of where the enforcement is implemented.
 
@@ -2285,7 +2926,7 @@ Logs must not include passwords, refresh tokens, API keys, raw provider secrets,
 
 ### 11.3 Metrics
 
-The backend should expose or record the following operational metrics when implementation starts:
+The backend should expose or record the following operational metrics as part of the MVP observability contract:
 
 | Metric | Purpose |
 |---|---|
@@ -2365,7 +3006,7 @@ Containers:
 
 | Container | Technology | Responsibility |
 |---|---|---|
-| Frontend Web App | React 19, TypeScript 5, Vite 7 | Provides user interface for authentication, verification, history, and reports. |
+| Frontend Web App | React 19, TypeScript 5, Vite 8 | Provides user interface for authentication, verification, history, and reports. |
 | Backend API | NestJS 11, TypeScript 5 | Owns business workflow, APIs, auth, integrations, scoring, and persistence. |
 | PostgreSQL Database | Supabase PostgreSQL | Stores users, cases, evidence, risks, audit logs, cache, and tokens. |
 | Object Storage | Supabase Storage or equivalent | Stores uploaded images and screenshots. |
@@ -2463,14 +3104,14 @@ Components:
 
 ### 13.1 Current UX Artifacts
 
-UX evidence is controlled: only final prototype exports and real Maze results are committed. No UX metrics are documented without participant results.
+UX evidence is controlled: only final prototype exports and real Maze results are committed. No UX metrics are documented without participant results. The results are used as evidence for usability validation and as future refinement input.
 
 | Artifact                 | Link                                                                                                                    | Purpose                                                                     |
 | ------------------------ | ----------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
 | Figma Prototype          | [Open Figma prototype](https://www.figma.com/proto/mvwLNkVDtvMAkDZA6vkggb/IA-Detector?node-id=0-1&t=76UhFVuQWoHqdmfs-1) | Interactive prototype for the MVP flow.                                     |
 | Maze Test                | [Open Maze test](https://t.maze.co/510125135)                                                                           | Usability test for navigation and comprehension.                            |
-| Prototype Assets Folder  | [Open prototype assets](docs/assets/prototype/)                                                                         | Final exported screens are stored here when approved.                       |
-| UX Testing Assets Folder | [Open UX testing assets](docs/assets/ux-testing/)                                                                       | Maze result evidence is stored here when participant results are available. |
+| Prototype Assets Folder  | [Open prototype assets](docs/assets/prototype/)                                                                         | Final exported screens are stored here.                       |
+| UX Testing Assets Folder | [Open UX testing assets](docs/assets/ux-testing/)                                                                       | Maze result evidence is stored here. |
 
 ### 13.2 UX Language Rules
 
@@ -2493,7 +3134,7 @@ The Figma prototype is the current source of truth for UI flow.
 
 Prototype screenshots are committed only when the prototype is approved as final. This prevents outdated visual evidence from being stored in the repository.
 
-Final screenshots must be stored in [prototype assets](docs/assets/prototype/).
+Final screenshots are stored in [prototype assets](docs/assets/prototype/).
 
 ### 13.4 UX Testing Evidence Rule
 
@@ -2501,88 +3142,196 @@ UX metrics must not be manually invented.
 
 Maze results are added only after real participants complete the test. When available, exported evidence must be stored in [UX testing assets](docs/assets/ux-testing/).
 
-### 13.5 UX Correction Traceability Rule
+### 13.5 UX Test Context
 
-When Maze evidence exists, each correction must be traceable:
-
-| Required Field | Meaning |
+| Item | Value |
 |---|---|
-| Test finding | What users struggled with or misunderstood. |
-| Correction applied | What was changed in the prototype. |
-| Affected screen | Which prototype screen changed. |
-| Evidence link | Link to screenshot or Maze evidence. |
+| Tool | Maze |
+| Prototype source | Figma prototype |
+| Participants | 5 |
+| Participant profile | Design students external to the project team |
+| Main objective | Validate usability, navigation, comprehension of the report, and clarity of the verification workflow |
+| Evidence collected | Task metrics, response summaries, heatmaps, satisfaction ratings, and open comments |
+| Documentation scope | Metrics, observations, heatmaps, satisfaction ratings, and participant comments. |
 
-No correction should be documented as applied unless the prototype was actually changed.
+### 13.6 Participant Background
 
-### 13.6 UX Ownership and Evidence Responsibility
+The first question measured familiarity with verification or fact-checking tools.
 
-UX prototype and testing artifacts are owned by the UX/prototyping track. The technical design track defines how those artifacts must be integrated into this repository, but UX results must only be added when they come from real prototype work and real participant sessions.
+![Participant familiarity](docs/assets/ux-testing/Test_P1.jpg)
 
-| UX Artifact                | Responsible Area | Repository Location or Reference                                            | Evidence Rule                                                                    |
-| -------------------------- | ---------------- | --------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
-| Figma prototype            | UX / Prototype   | Figma link in this section and exported screens in `docs/assets/prototype/` | Add only the final reviewed prototype link or screenshots.                       |
-| Maze or equivalent UX test | UX / Prototype   | Maze link in this section and exported results in `docs/assets/ux-testing/` | Add only after the test is configured and executed.                              |
-| Participant sessions       | UX Testing       | UX testing summary table in this section or supporting docs                 | Use at least 4 participants from the design group who are not part of this team. |
-| UX tasks                   | UX Testing       | UX testing task table                                                       | Define concrete tasks before testing starts.                                     |
-| UX observations            | UX Testing       | UX findings table                                                           | Add only observations collected during real sessions.                            |
-| UX corrections             | UX / Prototype   | UX correction traceability table                                            | Each correction must reference the issue it solves and the design decision used. |
+| Answer | Result |
+|---|---:|
+| Little familiar | 60% (3 participants) |
+| Very familiar | 20% (1 participant) |
+| Unfamiliar | 20% (1 participant) |
+| Quite familiar | 0% (0 participants) |
 
-Implementation rule:
+**Interpretation:** most participants were not expert users of fact-checking tools. This supports the need for clear terminology and a guided report structure.
 
-```text
-The repository must not present UX testing results as completed until participant sessions have actually been executed and documented.
-```
+### 13.7 UX Task Summary
 
-### 13.7 Required UX Testing Task Format
+| Task ID | Task Goal | Starting Screen | Success Criteria | Evidence |
+|---|---|---|---|---|
+| `UX-TASK-01` | Access the application through login/register flow. | Login screen | Participant reaches the main verification workspace. | [Metrics](docs/assets/ux-testing/Test_P2.1.png), [responses](docs/assets/ux-testing/Test_P2.2.png), [heatmap 1](docs/assets/ux-testing/Test_P2_Heatmap1.png), [heatmap 2](docs/assets/ux-testing/Test_P2_Heatmap2.jpg) |
+| `UX-TASK-02` | Submit suspicious content for analysis. | Main verification screen | Participant selects or uses the content input, starts analysis, reaches processing/result flow. | [Metrics](docs/assets/ux-testing/Test_P3.1.png), [responses](docs/assets/ux-testing/Test_P3.2.png), [heatmap 1](docs/assets/ux-testing/Test_P3_heatmap1.jpg), [heatmap 2](docs/assets/ux-testing/Test_P3_heatmap2.jpg), [heatmap 3](docs/assets/ux-testing/Test_P3_heatmap3.jpg) |
+| `UX-TASK-03` | Understand processing and report meaning. | Processing/result screens | Participant recognizes that the system generates an analysis report and can interpret the editorial recommendation. | [Processing answer](docs/assets/ux-testing/Test_P3.3.jpg), [recommendation answer](docs/assets/ux-testing/Test_P3.4.jpg) |
+| `UX-TASK-04` | Find previous verification cases. | Main screen or history screen | Participant opens history and accesses a previous report. | [Task evidence](docs/assets/ux-testing/Test_P4.1.png), [responses](docs/assets/ux-testing/Test_P4.2.png), [heatmap 1](docs/assets/ux-testing/Test_P4_heatmap1.jpg), [heatmap 2](docs/assets/ux-testing/Test_P4_heatmap2.jpg) |
+| `UX-TASK-05` | Confirm understanding of the report nature and overall clarity. | Final survey | Participant distinguishes editorial recommendation from absolute truth and rates clarity/orientation. | [report nature](docs/assets/ux-testing/Test_P5.1.jpg), [clarity](docs/assets/ux-testing/Test_P5.2.jpg), [orientation](docs/assets/ux-testing/Test_P5.3.jpg), [comments](docs/assets/ux-testing/Test_P5.4.png) |
 
-When UX testing evidence is added, each task must be documented using the following structure.
+### 13.8 Task 1 — Register / Access the Application
 
-| Field                | Required Content                                                                         |
-| -------------------- | ---------------------------------------------------------------------------------------- |
-| Task ID              | Stable identifier. Example: `UX-TASK-01`.                                                |
-| Task Goal            | What the participant must accomplish.                                                    |
-| Starting Screen      | Prototype screen where the task begins.                                                  |
-| Success Criteria     | How the team determines whether the task was completed.                                  |
-| Observed Issues      | Navigation, comprehension, accessibility, visual hierarchy, or consistency issues found. |
-| Participant Comments | Relevant comments collected during the session.                                          |
-| Result               | Completed, partially completed, or not completed.                                        |
+![Task 1 metrics](docs/assets/ux-testing/Test_P2.1.png)
 
-Recommended task examples:
+![Task 1 responses](docs/assets/ux-testing/Test_P2.2.png)
 
-| Task ID      | Task Goal                                | Success Criteria                                                                                                             |
-| ------------ | ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| `UX-TASK-01` | Submit suspicious text for verification. | Participant identifies the input area, selects text mode, submits content, and understands that a report is being generated. |
-| `UX-TASK-02` | Interpret the verification report.       | Participant can explain evidence score, risk score, source agreement, and recommended editorial action.                      |
-| `UX-TASK-03` | Find previous verification cases.        | Participant navigates to history and opens a saved case.                                                                     |
-| `UX-TASK-04` | Understand a provider or OCR warning.    | Participant notices the warning and understands that the report requires careful manual review.                              |
+| Metric | Result |
+|---|---:|
+| Success rate | 100% |
+| Drop-off | 0% |
+| Average duration | 28.3 seconds |
+| Misclick rate | 77.8% |
+| Responses | 5 |
 
-### 13.8 UX Findings and Correction Format
+**Heatmaps**
 
-When UX testing is completed, findings and corrections must be documented using this format.
+![Task 1 heatmap login](docs/assets/ux-testing/Test_P2_Heatmap1.png)
 
-| Finding ID   | Related Task | Problem Detected                         | Evidence                                 | Correction Applied                       | Design Criterion                                                                                          |
-| ------------ | ------------ | ---------------------------------------- | ---------------------------------------- | ---------------------------------------- | --------------------------------------------------------------------------------------------------------- |
-| `UX-FIND-01` | `UX-TASK-01` | Describe the issue found during testing. | Screenshot, Maze result, or observation. | Describe the prototype or UI correction. | Explain why this correction improves usability, navigation, accessibility, comprehension, or consistency. |
+![Task 1 heatmap register](docs/assets/ux-testing/Test_P2_Heatmap2.jpg)
 
-Rules:
+**Result:** all participants completed the access task successfully. Heatmaps show interactions around the login fields, register link, and registration form fields. The task had no drop-off and all 5 responses were recorded.
 
-| Rule                  | Requirement                                                                               |
-| --------------------- | ----------------------------------------------------------------------------------------- |
-| No fabricated results | Do not add participant metrics, comments, or findings that were not collected.            |
-| No anonymous guessing | If a participant comment is summarized, it must come from an actual session.              |
-| Privacy               | Do not include participant personal data beyond anonymous labels such as `Participant 1`. |
-| Traceability          | Each correction must connect to a finding or observed usability issue.                    |
-| README alignment      | If a UX correction changes page behavior, section 4 must be updated in the same commit.   |
+### 13.9 Task 2 — Analyze Suspicious Content
+
+![Task 2 metrics](docs/assets/ux-testing/Test_P3.1.png)
+
+![Task 2 responses](docs/assets/ux-testing/Test_P3.2.png)
+
+| Metric | Result |
+|---|---:|
+| Success rate | 100% |
+| Drop-off | 0% |
+| Average duration | 32.1 seconds |
+| Misclick rate | 72.5% |
+| Responses | 5 |
+
+**Heatmaps**
+
+![Task 2 heatmap selector](docs/assets/ux-testing/Test_P3_heatmap1.jpg)
+
+![Task 2 heatmap input and analyze button](docs/assets/ux-testing/Test_P3_heatmap2.jpg)
+
+![Task 2 heatmap processing result button](docs/assets/ux-testing/Test_P3_heatmap3.jpg)
+
+**Result:** all participants completed the analysis flow. Heatmaps show activity around the content type selector, input/upload area, analysis button, and result action. The task had 100% success and no drop-off.
+
+### 13.10 Comprehension Questions — Processing and Report Meaning
+
+![Processing comprehension](docs/assets/ux-testing/Test_P3.3.jpg)
+
+| Question | Correct interpretation | Result |
+|---|---|---:|
+| What is happening on the processing screen? | The system is generating an analysis report. | 100% |
+
+**Result:** all participants understood that the system was generating a report, not publishing or deleting content.
+
+![Editorial recommendation comprehension](docs/assets/ux-testing/Test_P3.4.jpg)
+
+| Question | Correct interpretation | Result |
+|---|---|---:|
+| What does the recommendation mean? | The content may continue or not depending on editorial review. | 80% |
+
+**Result:** 4 of 5 participants correctly interpreted the editorial recommendation. One participant selected `No está claro`.
+
+### 13.11 Task 3 — Review Previous Searches in History
+
+![Task 3 instruction and duration](docs/assets/ux-testing/Test_P4.1.png)
+
+![Task 3 responses](docs/assets/ux-testing/Test_P4.2.png)
+
+| Metric | Result |
+|---|---:|
+| Average duration | 45 seconds |
+| Responses | 5 |
+
+**Heatmaps**
+
+![Task 3 heatmap history navigation](docs/assets/ux-testing/Test_P4_heatmap1.jpg)
+
+![Task 3 heatmap open result](docs/assets/ux-testing/Test_P4_heatmap2.jpg)
+
+**Result:** users identified the history entry point and opened a previous analysis. This task had the longest average duration among the reported task flows.
+
+### 13.12 Final Comprehension and Satisfaction Questions
+
+![Report nature comprehension](docs/assets/ux-testing/Test_P5.1.jpg)
+
+| Answer | Result |
+|---|---:|
+| Recomendación editorial | 100% |
+| Verdad absoluta | 0% |
+| No se entiende | 0% |
+
+**Result:** all participants identified the output as an editorial recommendation instead of an absolute truth decision.
+
+![General clarity rating](docs/assets/ux-testing/Test_P5.2.jpg)
+
+| Rating | Result |
+|---|---:|
+| 3 | 40% |
+| 4 | 20% |
+| 5 | 40% |
+
+**Average clarity:** 4.0 / 5
+
+![Orientation rating](docs/assets/ux-testing/Test_P5.3.jpg)
+
+| Rating | Result |
+|---|---:|
+| 6 | 20% |
+| 7 | 20% |
+| 8 | 20% |
+| 9 | 20% |
+| 10 | 20% |
+
+**Average orientation:** 8.0 / 10
+
+![Open comments](docs/assets/ux-testing/Test_P5.4.png)
+
+**Open comments received:**
+
+- "todo bien gente, muy bonito su proyecto. Me parece muy intuitivo"
+- "Ninguna, en general es intuitivo"
+- "Un poco vago el resultado, pero en general bien"
+- "Mucho texto en pantalla de subida de archivos"
+- "Creo que el flujo me enredó un toque"
+
+### 13.13 UX Results Summary
+
+| Result ID | Evidence | Result observed |
+|---|---|---|
+| `UX-R01` | Task 1 metrics and heatmaps | Access flow reached 100% success with 0% drop-off and an average duration of 28.3 seconds. |
+| `UX-R02` | Task 2 metrics and heatmaps | Suspicious content analysis flow reached 100% success with 0% drop-off and an average duration of 32.1 seconds. |
+| `UX-R03` | Processing comprehension question | 100% of participants understood that the system generates an analysis report during processing. |
+| `UX-R04` | Editorial recommendation question | 80% of participants correctly interpreted the editorial recommendation; 20% selected `No está claro`. |
+| `UX-R05` | History task evidence | Participants opened previous analysis results from history. The average duration was 45 seconds. |
+| `UX-R06` | Final report nature question | 100% of participants understood that IA Detector provides an editorial recommendation rather than an absolute truth verdict. |
+| `UX-R07` | Final ratings | Average general clarity was 4.0 / 5 and average orientation was 8.0 / 10. |
+| `UX-R08` | Open comments | Participants described the project as intuitive overall, while also mentioning text density, report vagueness, and some flow confusion. |
+
+### 13.14 UX Testing Conclusion
+
+The UX test results support the prototype's ability to communicate the main IA Detector workflow. The access and analysis tasks reached 100% completion, the processing screen was correctly understood by all participants, and all participants recognized the report as an editorial recommendation rather than an absolute truth verdict. The final survey produced an average clarity rating of 4.0 / 5 and an average orientation rating of 8.0 / 10.
 
 ---
 
 ## 14. Deployment Contract
 
-### 14.1 Current Repository Validation
+### 14.1 Repository Validation Contract
 
-The current repository contains the design contract, Prisma schema, DBML model, and validation scripts.
+The repository must contain the design contract, Prisma schema, DBML model, and validation scripts.
 
-Current validation command:
+Required validation command:
 
 ```powershell
 npm.cmd run validate
@@ -2593,6 +3342,45 @@ This command runs:
 ```text
 prisma format && prisma validate
 ```
+
+#### 14.1.1 Local MVP Execution on Windows
+
+The repository includes a Windows helper script for local MVP execution:
+
+```powershell
+./run-app-windows.bat
+```
+
+The script is intended for local demo use. It performs the following sequence:
+
+1. Moves the terminal to the project folder.
+2. Checks that `npm` is available.
+3. Installs dependencies with `npm install` when `node_modules/` does not exist.
+4. Starts the local Prisma development database helper command.
+5. Runs Prisma generation and schema push commands.
+6. Opens one terminal for the backend with `npm run dev:backend`.
+7. Opens one terminal for the frontend with `npm run dev:frontend`.
+8. Prints the local URLs for frontend, backend API, and health check.
+
+Manual equivalent commands:
+
+```powershell
+npm install
+npm run db:generate
+npm run db:push
+npm run dev:backend
+npm run dev:frontend
+```
+
+Expected local URLs:
+
+```text
+Frontend: http://localhost:5173
+Backend API: http://localhost:3000/api
+Health: http://localhost:3000/api/health
+```
+
+Developer note: if the `.bat` script fails without enough detail, run the manual commands one by one so the failing step can be identified.
 
 ### 14.2 Target Environments
 
@@ -2625,29 +3413,55 @@ Mode rules by environment:
 
 ### 14.4 Environment Variables
 
-| Variable | Used By | Required In | Purpose |
+Environment variables are split by responsibility: local development, authentication, storage, external providers, frontend API configuration, and deployment. A developer must configure every variable required by the feature being run and must document safe placeholders in `.env.example`.
+
+#### Local Backend Variables
+
+| Variable | Used By | Required In | Example / Format | Purpose |
+|---|---|---|---|---|
+| `DATABASE_URL` | Prisma / Backend | Local, staging, production | `postgresql://postgres:postgres@localhost:5432/ia_detector?schema=public` | PostgreSQL connection string. |
+| `BACKEND_PORT` | Backend | Local | `3000` | Port used by NestJS backend. |
+| `FRONTEND_URL` | Backend | Local, staging, production | `http://localhost:5173` | Allowed frontend origin for CORS. |
+| `JWT_ACCESS_SECRET` | Backend | Local, staging, production | `replace-with-secure-secret` | Signs JWT access tokens. |
+| `JWT_ACCESS_EXPIRES_IN` | Backend | Local, staging, production | `15m` | Access token expiration duration. |
+
+#### Frontend API Variable
+
+| Variable | Used By | Required In | Example / Format | Purpose |
+|---|---|---|---|---|
+| `VITE_API_BASE_URL` | Frontend | Local, staging, production | `http://localhost:3000/api` | API base URL used by the Vite/React frontend. |
+
+#### Deployment and Extended MVP Variables
+
+| Variable | Used By | Required When | Purpose |
 |---|---|---|---|
-| `DATABASE_URL` | Prisma / Backend | Local, staging, production | PostgreSQL connection string. |
-| `FRONTEND_URL` | Backend | Local, staging, production | CORS and redirect validation. |
-| `BACKEND_URL` | Frontend | Local, staging, production | API base URL. |
-| `JWT_ACCESS_SECRET` | Backend | Local, staging, production | Signs access tokens. |
-| `JWT_REFRESH_SECRET` | Backend | Local, staging, production | Signs refresh tokens. |
-| `SUPABASE_URL` | Backend | Local, staging, production | Supabase project URL. |
-| `SUPABASE_SERVICE_ROLE_KEY` | Backend | Local, staging, production | Backend-only Supabase service key. |
-| `SUPABASE_STORAGE_BUCKET` | Backend | Local, staging, production | Upload bucket name. |
-| `FACT_CHECK_MODE` | Backend | Local, staging, production | `mock` or `live`. |
-| `GOOGLE_FACT_CHECK_API_KEY` | Backend | Staging, production if live mode | Google Fact Check API key. |
-| `FACT_CHECK_TIMEOUT_SECONDS` | Backend | Local, staging, production | Provider timeout. |
-| `FACT_CHECK_MAX_RETRIES` | Backend | Local, staging, production | Provider retry count. |
-| `FACT_CHECK_CACHE_TTL_MINUTES` | Backend | Local, staging, production | Cache duration. |
-| `AI_MODE` | Backend | Local, staging, production | `mock` or `live`. |
-| `AI_TIMEOUT_SECONDS` | Backend | Local, staging, production | AI/OCR timeout. |
-| `AI_MAX_RETRIES` | Backend | Local, staging, production | AI/OCR retry count. |
-| `MAX_IMAGE_SIZE_MB` | Backend | Local, staging, production | Upload validation limit. |
+| `BACKEND_URL` | Frontend / deployment config | Deployed frontend | Public backend API base URL. |
+| `JWT_REFRESH_SECRET` | Backend | Refresh token flow | Signs refresh tokens. |
+| `SUPABASE_URL` | Backend | Supabase integration is enabled | Supabase project URL. |
+| `SUPABASE_SERVICE_ROLE_KEY` | Backend | Supabase Storage or Supabase backend operations are enabled | Backend-only Supabase service key. |
+| `SUPABASE_STORAGE_BUCKET` | Backend | Image upload | Upload bucket name. |
+| `FACT_CHECK_MODE` | Backend | Evidence provider mode | `mock` or `live`. |
+| `GOOGLE_FACT_CHECK_API_KEY` | Backend | Live fact-check provider is enabled | Google Fact Check API key. |
+| `FACT_CHECK_TIMEOUT_SECONDS` | Backend | Live fact-check provider is enabled | Provider timeout. |
+| `FACT_CHECK_MAX_RETRIES` | Backend | Live fact-check provider is enabled | Provider retry count. |
+| `FACT_CHECK_CACHE_TTL_MINUTES` | Backend | Fact-check cache | Cache duration. |
+| `AI_MODE` | Backend | AI/OCR provider mode | `mock` or `live`. |
+| `AI_TIMEOUT_SECONDS` | Backend | AI/OCR provider is enabled | AI/OCR timeout. |
+| `AI_MAX_RETRIES` | Backend | AI/OCR provider is enabled | AI/OCR retry count. |
+| `MAX_IMAGE_SIZE_MB` | Backend | Image upload | Upload validation limit. |
+
+Security rules:
+
+```text
+.env is local only and must not be committed.
+.env.example may be committed only with placeholders.
+Production secrets must never use the local-development values.
+```
+
 
 ### 14.5 CI/CD Pipeline Contract
 
-When implementation code exists, CI/CD must run the following stages:
+The CI/CD pipeline must run the following stages:
 
 | Stage | Required Check |
 |---|---|
@@ -2688,17 +3502,21 @@ The project must use quality gates to prevent undocumented, unsafe, or architect
 
 ### 14.8 Validation Command Set
 
-The following commands define the expected validation workflow. Commands marked as future are required once the related implementation exists.
+The following commands define the expected validation workflow for the MVP design contract.
 
-Current validation commands:
+Required validation commands:
 
 ```powershell
 npm install
 npm run validate
+npm run typecheck:frontend
+npx tsc --project tsconfig.backend.json --noEmit
+npm run build:frontend
+npm run test:frontend
 git diff --check
 ```
 
-Current repository consistency checks:
+Required repository consistency checks:
 
 ```powershell
 git grep -n "PASS\|NO_PASS\|HUMAN_REVIEW" -- ':!README.md' ':!.github/agents/*'
@@ -2709,21 +3527,10 @@ $encodingArtifactPattern = "$([char]0x00D4)|$([char]0x00C3)"
 Select-String -Path README.md,docs/agent-findings.md -Pattern $encodingArtifactPattern
 ```
 
-Future validation commands when MVP implementation exists:
-
-```powershell
-npm run lint
-npm run test
-npm run build
-npm run test:e2e
-npm run db:migrate
-npm run db:seed
-```
-
 Rule:
 
 ```text
-Future commands must not be treated as passing until the corresponding script exists in package.json and has been executed successfully.
+Extended validation commands are mandatory for release readiness. Each command must exist in `package.json`, run successfully, and match the scope documented in this README.
 ```
 
 ### 14.9 CI/CD Execution Order and Blocking Rule
@@ -2733,10 +3540,10 @@ The target CI/CD pipeline must execute validations in this order:
 | Stage               | Purpose                                                                                       |
 | ------------------- | --------------------------------------------------------------------------------------------- |
 | Install             | Install project dependencies.                                                                 |
-| Static validation   | Validate formatting, TypeScript, linting, and repository consistency checks.                  |
+| Static validation   | Validate Prisma formatting, TypeScript, frontend build readiness, tests, and repository consistency checks. |
 | Database validation | Validate Prisma schema and DBML alignment.                                                    |
 | Unit tests          | Run deterministic unit tests for frontend and backend modules.                                |
-| Integration tests   | Run API, repository, and contract tests when implementation exists.                           |
+| Integration tests   | Run API, repository, and contract tests defined by the MVP contracts.                         |
 | Build               | Build frontend and backend artifacts.                                                         |
 | Security review     | Check secrets, token handling, unsafe storage, upload restrictions, and safe error responses. |
 | Deployment          | Deploy only after all required gates pass.                                                    |
@@ -2744,7 +3551,7 @@ The target CI/CD pipeline must execute validations in this order:
 Pipeline rule:
 
 ```text
-A CI/CD pipeline failure must block deployment until the failing gate is corrected or explicitly documented as not applicable to the current project phase.
+A CI/CD pipeline failure must block deployment until the failing gate is corrected or explicitly documented as not applicable to the MVP design scope.
 ```
 
 ---
@@ -2880,27 +3687,29 @@ Before review or deployment, manually verify:
 
 ## 16. Repository Structure and Validation
 
-### 16.1 Current Repository Structure
+### 16.1 Repository Structure Contract
+
+The repository must be organized so that a junior developer can identify the responsibility of each area before modifying code.
 
 ```text
 caso2-ia-detector/
 ├── .github/
 │   └── agents/
+│       └── *.md
 │
 ├── .gitignore
 ├── README.md
 ├── package.json
 ├── package-lock.json
+├── tsconfig.json
+├── tsconfig.backend.json
 ├── prisma.config.ts
 │
 ├── docs/
 │   ├── agent-findings.md
 │   └── assets/
 │       ├── prototype/
-│       │   └── .gitkeep
-│       │
 │       └── ux-testing/
-│           └── .gitkeep
 │
 ├── database/
 │   └── dbml/
@@ -2911,10 +3720,143 @@ caso2-ia-detector/
 │
 └── src/
     ├── backend/
-    │   └── .gitkeep
+    │   ├── main.ts
+    │   ├── app.module.ts
+    │   │
+    │   ├── api/
+    │   │   ├── controllers/
+    │   │   │   ├── AuthController.ts
+    │   │   │   ├── HealthController.ts
+    │   │   │   ├── UploadController.ts
+    │   │   │   └── VerificationController.ts
+    │   │   │
+    │   │   ├── dto/
+    │   │   │   ├── auth/
+    │   │   │   │   ├── AuthenticatedRequest.ts
+    │   │   │   │   ├── AuthResponseDTO.ts
+    │   │   │   │   ├── LoginRequestDTO.ts
+    │   │   │   │   ├── RegisterRequestDTO.ts
+    │   │   │   │   └── UserDTO.ts
+    │   │   │   │
+    │   │   │   └── verification/
+    │   │   │       ├── CreateVerificationRequestDTO.ts
+    │   │   │       ├── VerificationAnalysisReportDTO.ts
+    │   │   │       └── VerificationHistoryItemDTO.ts
+    │   │   │
+    │   │   └── guards/
+    │   │       └── JwtAuthGuard.ts
+    │   │
+    │   ├── application/
+    │   │   ├── auth/
+    │   │   │   ├── AuthModule.ts
+    │   │   │   ├── LoginService.ts
+    │   │   │   ├── PasswordHasher.ts
+    │   │   │   └── RegisterService.ts
+    │   │   │
+    │   │   ├── health/
+    │   │   │   └── HealthService.ts
+    │   │   │
+    │   │   └── verification/
+    │   │       ├── CreateVerificationCaseService.ts
+    │   │       ├── GetVerificationCaseService.ts
+    │   │       ├── ListVerificationHistoryService.ts
+    │   │       └── VerificationModule.ts
+    │   │
+    │   └── infrastructure/
+    │       └── persistence/
+    │           ├── prisma/
+    │           │   ├── PrismaModule.ts
+    │           │   └── PrismaService.ts
+    │           │
+    │           └── repositories/
+    │               ├── UserRepository.ts
+    │               └── VerificationRepository.ts
     └── frontend/
-        └── .gitkeep
+        ├── app/
+        │   ├── App.tsx
+        │   ├── main.tsx
+        │   ├── routes.tsx
+        │   ├── styles.css
+        │   └── providers/
+        │       ├── AuthProvider.tsx
+        │       └── QueryProvider.tsx
+        │
+        ├── features/
+        │   ├── auth/
+        │   │   └── pages/
+        │   │       ├── LoginPage.tsx
+        │   │       └── RegisterPage.tsx
+        │   │
+        │   ├── history/
+        │   │   └── pages/
+        │   │       ├── VerificationCaseDetailPage.tsx
+        │   │       └── VerificationHistoryPage.tsx
+        │   │
+        │   └── verification/
+        │       └── pages/
+        │           ├── VerificationHubPage.tsx
+        │           └── VerificationResultPage.tsx
+        │
+        └── shared/
+            ├── api/
+            │   ├── authApi.ts
+            │   ├── httpClient.ts
+            │   └── verificationApi.ts
+            │
+            ├── components/
+            │   ├── layout/
+            │   │   └── AppLayout.tsx
+            │   │
+            │   ├── report/
+            │   │   ├── AuditTrailPanel.tsx
+            │   │   ├── EvidenceList.tsx
+            │   │   ├── labels.ts
+            │   │   ├── RecommendationBanner.tsx
+            │   │   ├── RiskSignalList.tsx
+            │   │   ├── ScoreSummary.tsx
+            │   │   └── VerificationReportView.tsx
+            │   │
+            │   └── ui/
+            │       ├── alert.tsx
+            │       ├── badge.tsx
+            │       ├── button.tsx
+            │       ├── card.tsx
+            │       ├── input.tsx
+            │       ├── label.tsx
+            │       ├── skeleton.tsx
+            │       └── textarea.tsx
+            │
+            ├── errors/
+            │   └── apiError.ts
+            │
+            ├── lib/
+            │   └── utils.ts
+            │
+            └── types/
+                └── verification.ts
 ```
+
+Responsibility summary:
+
+| Area | Responsibility |
+|---|---|
+| `src/backend/api/controllers` | HTTP routes and request/response boundary. |
+| `src/backend/api/dto` | API input and output shapes. |
+| `src/backend/api/guards` | Authentication and authorization checks. |
+| `src/backend/application` | Business use cases and orchestration. |
+| `src/backend/infrastructure/persistence/prisma` | Prisma Client setup and database connection. |
+| `src/backend/infrastructure/persistence/repositories` | Database access through Prisma. |
+| `prisma/schema.prisma` | Source of truth for Prisma data model. |
+| `database/dbml/ia-detector.dbml` | Review-friendly relational model documentation. |
+| `prisma.config.ts` | Prisma 7 configuration and environment loading. |
+| `package.json` | Scripts and dependency declarations. |
+
+Implementation rule:
+
+```text
+Do not place business logic directly in controllers or PrismaService. Controllers call services; services call repositories; repositories use Prisma.
+```
+
 
 ### 16.2 Supporting Artifacts
 
@@ -2940,31 +3882,103 @@ If a clean ZIP is required, generate it from Git instead of compressing the loca
 git archive --format=zip --output caso2-ia-detector-clean.zip HEAD
 ```
 
-### 16.4 Local Environment Variable for Prisma
+### 16.4 Local Environment Variables and Docker Database
 
-Prisma reads the database URL from `prisma.config.ts`.
+The backend reads local environment variables from `.env`.
 
-Before validating locally, define:
+Required local `.env` example:
+
+```env
+DATABASE_URL="postgresql://postgres:postgres@localhost:5432/ia_detector?schema=public"
+BACKEND_PORT=3000
+FRONTEND_URL="http://localhost:5173"
+JWT_ACCESS_SECRET="replace-with-local-development-secret"
+JWT_ACCESS_EXPIRES_IN="15m"
+```
+
+Prisma reads `DATABASE_URL` through `prisma.config.ts`, which must import `dotenv/config`.
+
+Expected Prisma config behavior:
+
+```text
+1. Load .env.
+2. Read DATABASE_URL.
+3. Use prisma/schema.prisma as the schema file.
+4. Use prisma/migrations as the migrations folder when migrations are added.
+```
+
+Local PostgreSQL is expected to run through Docker:
 
 ```powershell
-$env:DATABASE_URL="postgresql://user:password@localhost:5432/ia_detector"
+docker start ia-detector-postgres
 ```
+
+If the container does not exist:
+
+```powershell
+docker run --name ia-detector-postgres `
+  -e POSTGRES_USER=postgres `
+  -e POSTGRES_PASSWORD=postgres `
+  -e POSTGRES_DB=ia_detector `
+  -p 5432:5432 `
+  -d postgres:15
+```
+
 
 ### 16.5 Validation Commands
 
-Run:
+Install dependencies:
+
+```powershell
+npm.cmd install
+```
+
+Generate Prisma Client:
+
+```powershell
+npm.cmd run db:generate
+```
+
+Push schema to the local PostgreSQL database:
+
+```powershell
+npm.cmd run db:push
+```
+
+Validate Prisma schema:
 
 ```powershell
 npm.cmd run validate
 ```
 
-Expected result:
+Start backend:
+
+```powershell
+npm.cmd run dev:backend
+```
+
+Expected backend startup result:
 
 ```text
-Prisma schema loaded from prisma\schema.prisma.
-Formatted prisma\schema.prisma
-The schema at prisma\schema.prisma is valid
+IA Detector backend running on http://localhost:3000/api
 ```
+
+Expected health check result:
+
+```json
+{
+  "status": "ok",
+  "service": "ia-detector-backend",
+  "database": "ok"
+}
+```
+
+Validation rule:
+
+```text
+A source change is not ready for review until Prisma generation, database synchronization or migration, schema validation, backend startup, and the relevant smoke tests pass locally.
+```
+
 
 ### 16.6 Grep Checks
 
